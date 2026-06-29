@@ -411,17 +411,17 @@
 
     <script>
         // ==========================================
-        // Supabase の初期化
+        // Supabase の初期化（エラー対策済：変数名を sb に統一）
         // ==========================================
         const SUPABASE_URL = 'https://fqipmvzalmfyywshtvoe.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxaXBtdnphbG1meXl3c2h0dm9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NDQzODMsImV4cCI6MjA5ODIyMDM4M30.E89j8-fBbOxmoCOx-LWva7JMHOPq2XK-qxyw3V1vuzE';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
         let currentTreeTitle = ''; // 現在開いているデータのファイル名を記憶する変数
 
         // ログイン状態の監視
-        supabase.auth.onAuthStateChange((event, session) => {
+        sb.auth.onAuthStateChange((event, session) => {
             currentUser = session?.user || null;
             updateAuthUI();
         });
@@ -457,17 +457,20 @@
             }
         }
 
-        // Googleログインボタン
+        // Googleログインボタン（リダイレクト対策済）
         document.getElementById('login-btn').addEventListener('click', async () => {
-            const { error } = await supabase.auth.signInWithOAuth({
+            const { error } = await sb.auth.signInWithOAuth({
                 provider: 'google',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname
+                }
             });
             if (error) alert('ログインエラー: ' + error.message);
         });
 
         // ログアウトボタン
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            const { error } = await supabase.auth.signOut();
+            const { error } = await sb.auth.signOut();
             if (error) alert('ログアウトエラー: ' + error.message);
         });
 
@@ -485,7 +488,7 @@
             btn.textContent = '保存中...';
 
             const graphData = cy.json();
-            const { data, error } = await supabase
+            const { data, error } = await sb
                 .from('trees')
                 .upsert({
                     user_id: currentUser.id,
@@ -518,7 +521,7 @@
             btn.textContent = '一覧取得中...';
 
             // 保存されているファイル名の一覧を取得
-            const { data, error } = await supabase
+            const { data, error } = await sb
                 .from('trees')
                 .select('title')
                 .eq('user_id', currentUser.id)
@@ -552,7 +555,7 @@
 
         // 指定されたファイル名のデータを読み込む関数
         async function loadSpecificTree(title) {
-            const { data, error } = await supabase
+            const { data, error } = await sb
                 .from('trees')
                 .select('graph_data')
                 .eq('user_id', currentUser.id)

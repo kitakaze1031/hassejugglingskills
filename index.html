@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ハッセ図エディタ（クラウド保存・管理対応版）</title>
+    <title>ハッセ図エディタ（複数色・グループ対応版）</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -82,13 +82,11 @@
             background-color: #8e44ad;
         }
 
-        /* ログインボタン用の色 */
         .btn-auth {
             background-color: #f39c12;
             color: white;
         }
 
-        /* ユーザー情報表示用 */
         #user-info {
             color: white;
             font-size: 12px;
@@ -173,8 +171,8 @@
         }
 
         #group-name-input {
-            width: 120px;
-            min-width: 120px;
+            width: 150px;
+            min-width: 150px;
             background: #ffffff;
             color: #2c3e50;
         }
@@ -312,8 +310,8 @@
         }
 
         .hint-text {
-            margin: 6px 0 0 0;
-            font-size: 12px;
+            margin: 4px 0 0 0;
+            font-size: 11px;
             color: #607d8b;
             line-height: 1.4;
         }
@@ -328,7 +326,10 @@
                 <div id="toolbar-color-palette" class="color-palette"></div>
                 <input type="color" id="node-color" value="#3498db" title="カスタムカラーを選択">
             </div>
-            <input type="text" id="group-name-input" placeholder="グループ名">
+            <div>
+                <input type="text" id="group-name-input" placeholder="グループ名（選択した色）">
+                <p class="hint-text" style="color: #bdc3c7; margin: 2px 0 0 2px;">※色は複数タップして選べます</p>
+            </div>
             <button id="add-node-btn">➕ 技を追加</button>
         </div>
         <button id="mode-prereq-btn">↙️ 前提線を引く</button>
@@ -371,7 +372,7 @@
             <input type="text" id="cloud-title-input" placeholder="ファイル名を入力">
         </div>
         <div class="modal-field">
-            <label for="cloud-status-select">公開設定（今後の機能用）</label>
+            <label for="cloud-status-select">公開設定</label>
             <select id="cloud-status-select" style="color: #2c3e50; font-weight: bold; background-color: #fff;">
                 <option value="private">🔒 非公開 (自分だけ)</option>
                 <option value="unlisted">🔗 限定公開 (リンクを知っている人のみ・編集不可)</option>
@@ -386,8 +387,7 @@
     <div id="cloud-load-modal" class="floating-modal" style="max-height: 80vh; overflow-y: auto; max-width: 420px; width: 92%;">
         <h3>クラウドから読み込み</h3>
         <p style="font-size: 12px; color: #666; text-align: center; margin-bottom: 12px;">開きたいファイルを選択してください</p>
-        <div id="cloud-load-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
-            </div>
+        <div id="cloud-load-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;"></div>
         <button class="modal-btn close-btn" onclick="closeCloudLoadModal()">閉じる</button>
     </div>
 
@@ -403,7 +403,7 @@
             <input type="url" id="node-url-input" placeholder="https://...">
         </div>
         <div class="modal-field">
-            <label>色</label>
+            <label>所属グループ（色を複数タップで選択可）</label>
             <div class="color-palette-container" style="background: transparent; padding: 0; justify-content: center; margin-bottom: 8px;">
                 <div id="modal-color-palette" class="color-palette" style="grid-template-columns: repeat(5, 28px); gap: 10px;"></div>
             </div>
@@ -412,7 +412,7 @@
             </div>
         </div>
         <div class="modal-field">
-            <label for="node-group-input">グループ名</label>
+            <label for="node-group-input">グループ名（最後にタップした選択色名）</label>
             <input type="text" id="node-group-input" placeholder="例: 返し技 / 左系 / 基本形">
         </div>
         <button id="node-save-btn" class="modal-btn">保存</button>
@@ -421,26 +421,23 @@
 
     <div id="trans-editor" class="floating-modal" style="max-height: 85vh; overflow-y: auto; max-width: 400px; width: 90%;">
         <h3>遷移線を編集</h3>
-        
         <div id="trans-inputs-container"></div>
-
         <button id="trans-save-btn" class="modal-btn" style="background-color: #2ecc71;">すべての変更を保存</button>
         <button class="modal-btn close-btn" onclick="closeTransEditor()">閉じる</button>
     </div>
 
     <script>
         // ==========================================
-        // Supabase の初期化（エラー対策済：変数名を sb に統一）
+        // Supabase の初期化
         // ==========================================
         const SUPABASE_URL = 'https://fqipmvzalmfyywshtvoe.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxaXBtdnphbG1meXl3c2h0dm9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NDQzODMsImV4cCI6MjA5ODIyMDM4M30.E89j8-fBbOxmoCOx-LWva7JMHOPq2XK-qxyw3V1vuzE';
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
-        let currentTreeTitle = ''; // 現在開いているデータのファイル名を記憶
-        let currentTreeStatus = 'private'; // 現在の公開設定を記憶
+        let currentTreeTitle = '';
+        let currentTreeStatus = 'private';
 
-        // ログイン状態の監視
         sb.auth.onAuthStateChange((event, session) => {
             currentUser = session?.user || null;
             updateAuthUI();
@@ -460,7 +457,6 @@
                 logoutBtn.style.display = 'inline-block';
                 userInfo.style.display = 'inline-block';
                 userInfo.textContent = `${currentUser.email} でログイン中`;
-                
                 cloudSaveBtn.style.display = 'inline-block';
                 cloudLoadBtn.style.display = 'inline-block';
                 localSaveBtn.style.display = 'none';
@@ -469,7 +465,6 @@
                 loginBtn.style.display = 'inline-block';
                 logoutBtn.style.display = 'none';
                 userInfo.style.display = 'none';
-                
                 cloudSaveBtn.style.display = 'none';
                 cloudLoadBtn.style.display = 'none';
                 localSaveBtn.style.display = 'inline-block';
@@ -477,24 +472,19 @@
             }
         }
 
-        // Googleログインボタン
         document.getElementById('login-btn').addEventListener('click', async () => {
             const { error } = await sb.auth.signInWithOAuth({
                 provider: 'google',
-                options: {
-                    redirectTo: window.location.origin + window.location.pathname
-                }
+                options: { redirectTo: window.location.origin + window.location.pathname }
             });
             if (error) alert('ログインエラー: ' + error.message);
         });
 
-        // ログアウトボタン
         document.getElementById('logout-btn').addEventListener('click', async () => {
             const { error } = await sb.auth.signOut();
             if (error) alert('ログアウトエラー: ' + error.message);
         });
 
-        // クラウド保存用モーダルの開閉
         function closeCloudSaveModal() {
             document.getElementById('cloud-save-modal').style.display = 'none';
             closeOverlayIfUnused();
@@ -508,12 +498,10 @@
             document.getElementById('cloud-save-modal').style.display = 'block';
         });
 
-        // 実際のクラウド保存処理
         document.getElementById('cloud-save-confirm-btn').addEventListener('click', async () => {
             const title = document.getElementById('cloud-title-input').value.trim();
             if (!title) return alert('ファイル名を入力してください。');
             const status = document.getElementById('cloud-status-select').value;
-
             const btn = document.getElementById('cloud-save-confirm-btn');
             btn.textContent = '保存中...';
 
@@ -539,7 +527,6 @@
             }
         });
 
-        // クラウド読込モーダルの開閉
         const cloudLoadModal = document.getElementById('cloud-load-modal');
         const cloudLoadList = document.getElementById('cloud-load-list');
 
@@ -553,7 +540,6 @@
             const btn = document.getElementById('cloud-load-btn');
             btn.textContent = '一覧取得中...';
 
-            // 保存されているファイル名とステータスを取得
             const { data, error } = await sb
                 .from('trees')
                 .select('title, status')
@@ -561,17 +547,14 @@
                 .order('updated_at', { ascending: false });
 
             btn.textContent = '☁️ クラウド読込';
-            
             if (error) {
                 console.error(error);
                 return alert('一覧の取得に失敗しました: ' + error.message);
             }
-
             if (!data || data.length === 0) {
-                return alert('保存されたデータが見つかりません。先に一度「クラウド保存」してください。');
+                return alert('保存されたデータが見つかりません。');
             }
 
-            // モーダル内にファイル一覧と【削除ボタン】を配置
             cloudLoadList.innerHTML = '';
             data.forEach(item => {
                 const row = document.createElement('div');
@@ -580,7 +563,6 @@
                 row.style.alignItems = 'center';
                 row.style.marginBottom = '4px';
 
-                // ステータスに応じたアイコン
                 let statusIcon = '🔒';
                 if (item.status === 'unlisted') statusIcon = '🔗';
                 if (item.status === 'public_readonly') statusIcon = '👁';
@@ -600,22 +582,19 @@
                 delBtn.style.padding = '12px';
                 delBtn.style.borderRadius = '8px';
                 delBtn.style.cursor = 'pointer';
-                delBtn.title = 'このデータを削除';
                 delBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (!confirm(`本当に「${item.title}」をクラウドから完全に削除しますか？\nこの操作は取り消せません。`)) return;
-                    
+                    if (!confirm(`本当に「${item.title}」を削除しますか？`)) return;
                     const { error: delError } = await sb
                         .from('trees')
                         .delete()
                         .eq('user_id', currentUser.id)
                         .eq('title', item.title);
 
-                    if (delError) {
-                        alert('削除に失敗しました: ' + delError.message);
-                    } else {
+                    if (delError) alert('削除に失敗しました: ' + delError.message);
+                    else {
                         alert(`「${item.title}」を削除しました。`);
-                        document.getElementById('cloud-load-btn').click(); // リストを再読込
+                        document.getElementById('cloud-load-btn').click();
                     }
                 });
 
@@ -628,7 +607,6 @@
             cloudLoadModal.style.display = 'block';
         });
 
-        // 指定されたファイル名のデータを読み込む関数
         async function loadSpecificTree(title) {
             const { data, error } = await sb
                 .from('trees')
@@ -644,7 +622,7 @@
                 cy.json(data.graph_data);
                 undoStack = [];
                 currentTreeTitle = title;
-                currentTreeStatus = data.status || 'private'; // ステータスを読み込む
+                currentTreeStatus = data.status || 'private';
                 normalizeGraphData();
                 updateGroupLegend();
                 closeCloudLoadModal();
@@ -653,9 +631,8 @@
         }
 
         // ==========================================
-        // ハッセ図エディタのプログラム
+        // ハッセ図エディタのプログラム（複数色対応）
         // ==========================================
-
         const PRESET_COLORS = [
             '#e74c3c', '#e91e63', '#9b59b6', '#673ab7', '#3f51b5',
             '#2196f3', '#03a9f4', '#00bcd4', '#1abc9c', '#2ecc71',
@@ -672,78 +649,120 @@
             return c;
         }
 
-        function getExistingGroupName(color) {
-            let foundName = '';
-            if (typeof cy !== 'undefined' && cy.nodes) {
-                cy.nodes().forEach(n => {
-                    if (!foundName && normalizeColor(n.data('color')) === normalizeColor(color)) {
-                        const gName = (n.data('groupName') || '').trim();
-                        if (gName) foundName = gName;
-                    }
-                });
+        // 複数色パレットをトグル管理するクラス
+        class PaletteManager {
+            constructor(containerId, inputColorId, inputTextId) {
+                this.container = document.getElementById(containerId);
+                this.inputColor = document.getElementById(inputColorId);
+                this.inputText = document.getElementById(inputTextId);
+                this.selectedColors = ['#3498db']; // 現在選択されている色の配列
+                this.activeColor = '#3498db';       // 最後にタップした色（テキスト入力同期用）
             }
-            return foundName;
-        }
 
-        function syncColorGroups(targetColor, newGroupName) {
-            if (typeof cy !== 'undefined' && cy.nodes) {
-                cy.nodes().forEach(n => {
-                    if (normalizeColor(n.data('color')) === normalizeColor(targetColor)) {
-                        n.data('groupName', newGroupName);
+            init() {
+                this.container.innerHTML = '';
+                PRESET_COLORS.forEach(color => {
+                    const swatch = document.createElement('div');
+                    swatch.className = 'color-swatch';
+                    swatch.style.backgroundColor = color;
+                    swatch.dataset.color = color.toLowerCase();
+                    swatch.addEventListener('click', () => this.handleSwatchClick(color));
+                    this.container.appendChild(swatch);
+                });
+
+                this.inputColor.addEventListener('input', (e) => {
+                    const color = normalizeColor(e.target.value);
+                    if (!this.selectedColors.includes(color)) {
+                        this.selectedColors.push(color);
+                    }
+                    this.activeColor = color;
+                    this.render();
+                    this.syncText();
+                });
+
+                this.inputText.addEventListener('input', (e) => {
+                    const newName = e.target.value.trim();
+                    const colorMap = cy.data('colorMap') || {};
+                    if (this.activeColor) {
+                        colorMap[this.activeColor] = newName;
+                        cy.data('colorMap', colorMap);
+                        updateGroupLegend();
                     }
                 });
+
+                this.render();
+                this.syncText();
             }
-        }
 
-        function setupColorPalette(containerId, inputId, textInputId) {
-            const container = document.getElementById(containerId);
-            const input = document.getElementById(inputId);
-            
-            PRESET_COLORS.forEach(color => {
-                const swatch = document.createElement('div');
-                swatch.className = 'color-swatch';
-                swatch.style.backgroundColor = color;
-                swatch.dataset.color = color.toLowerCase();
-                
-                swatch.addEventListener('click', () => {
-                    input.value = color;
-                    updatePaletteSelection(container, color);
-                    if (textInputId) {
-                        const existingName = getExistingGroupName(color);
-                        if (existingName) {
-                            document.getElementById(textInputId).value = existingName;
-                        }
+            handleSwatchClick(color) {
+                color = normalizeColor(color);
+                const index = this.selectedColors.indexOf(color);
+
+                if (index > -1) {
+                    // 既に選択されていれば解除
+                    this.selectedColors.splice(index, 1);
+                    if (this.activeColor === color) {
+                        this.activeColor = this.selectedColors.length > 0 ? this.selectedColors[this.selectedColors.length - 1] : null;
                     }
-                });
-                container.appendChild(swatch);
-            });
-
-            input.addEventListener('input', (e) => {
-                const color = e.target.value;
-                updatePaletteSelection(container, color);
-                if (textInputId) {
-                    const existingName = getExistingGroupName(color);
-                    if (existingName) {
-                        document.getElementById(textInputId).value = existingName;
-                    }
-                }
-            });
-            updatePaletteSelection(container, input.value);
-        }
-
-        function updatePaletteSelection(container, hexColor) {
-            const lowerColor = normalizeColor(hexColor);
-            container.querySelectorAll('.color-swatch').forEach(el => {
-                if (el.dataset.color === lowerColor) {
-                    el.classList.add('selected');
                 } else {
-                    el.classList.remove('selected');
+                    // 選択されていなければ追加
+                    this.selectedColors.push(color);
+                    this.activeColor = color;
                 }
-            });
-        }
+                this.render();
+                this.syncText();
+            }
 
-        setupColorPalette('toolbar-color-palette', 'node-color', 'group-name-input');
-        setupColorPalette('modal-color-palette', 'node-color-input', 'node-group-input');
+            render() {
+                this.container.querySelectorAll('.color-swatch').forEach(el => {
+                    const c = el.dataset.color;
+                    if (this.selectedColors.includes(c)) {
+                        el.classList.add('selected');
+                        if (c === this.activeColor) {
+                            el.style.transform = 'scale(1.15)';
+                            el.style.boxShadow = '0 0 0 2px #fff, 0 0 0 4px #000'; // 最後に選んだアクティブ色は黒の二重枠
+                            el.style.zIndex = '2';
+                        } else {
+                            el.style.transform = '';
+                            el.style.boxShadow = '';
+                            el.style.zIndex = '';
+                        }
+                    } else {
+                        el.classList.remove('selected');
+                        el.style.transform = '';
+                        el.style.boxShadow = '';
+                        el.style.zIndex = '';
+                    }
+                });
+                if (this.activeColor) {
+                    this.inputColor.value = this.activeColor;
+                }
+            }
+
+            syncText() {
+                if (this.activeColor) {
+                    const colorMap = cy.data('colorMap') || {};
+                    this.inputText.value = colorMap[this.activeColor] || '';
+                    this.inputText.disabled = false;
+                    this.inputText.placeholder = "グループ名を入力";
+                } else {
+                    this.inputText.value = '';
+                    this.inputText.disabled = true;
+                    this.inputText.placeholder = "色をタップして選択";
+                }
+            }
+
+            setSelectedColors(colors) {
+                this.selectedColors = colors.map(normalizeColor);
+                this.activeColor = this.selectedColors.length > 0 ? this.selectedColors[0] : null;
+                this.render();
+                this.syncText();
+            }
+
+            getSelectedColors() {
+                return this.selectedColors;
+            }
+        }
 
         let undoStack = [];
         let currentMode = 'view';
@@ -767,8 +786,8 @@
                         'text-valign': 'bottom',
                         'text-margin-y': 5,
                         'font-size': '14px',
-                        'width': 40,
-                        'height': 40,
+                        'width': 42,
+                        'height': 42,
                         'text-wrap': 'wrap',
                         'z-index': 30,
                         'z-index-compare': 'manual'
@@ -837,6 +856,40 @@
             ]
         });
 
+        // 複数色を円グラフ状に塗り分けるスタイル適用関数
+        function applyNodePieStyle(node) {
+            let colors = node.data('colors') || [];
+            if (colors.length === 0 && node.data('color')) {
+                colors = [node.data('color')];
+            }
+            if (colors.length === 0) {
+                colors = ['#95a5a6']; // 選択がない場合はグレー
+            }
+
+            if (colors.length === 1) {
+                node.style({
+                    'background-color': colors[0],
+                    'pie-size': '0%' // 円グラフをオフ
+                });
+            } else {
+                let styleObj = {
+                    'background-color': '#95a5a6',
+                    'pie-size': '100%' // 円グラフをオン
+                };
+                const percent = 100 / colors.length;
+                // Cytoscapeは最大16分割までパイチャートをサポート
+                for (let i = 1; i <= 16; i++) {
+                    if (i <= colors.length) {
+                        styleObj[`pie-${i}-background-color`] = colors[i - 1];
+                        styleObj[`pie-${i}-background-size`] = percent;
+                    } else {
+                        styleObj[`pie-${i}-background-size`] = 0;
+                    }
+                }
+                node.style(styleObj);
+            }
+        }
+
         const btns = {
             view: document.getElementById('mode-view-btn'),
             prereq: document.getElementById('mode-prereq-btn'),
@@ -849,6 +902,10 @@
         const modalContent = document.getElementById('modal-content');
         const nodeEditor = document.getElementById('node-editor');
         const transEditor = document.getElementById('trans-editor');
+
+        // パレット管理インスタンスの作成
+        const toolbarPalette = new PaletteManager('toolbar-color-palette', 'node-color', 'group-name-input');
+        const modalPalette = new PaletteManager('modal-color-palette', 'node-color-input', 'node-group-input');
 
         function setMode(mode) {
             currentMode = mode;
@@ -870,10 +927,7 @@
                 linkModal, nodeEditor, transEditor, cloudLoadModal, 
                 document.getElementById('cloud-save-modal')
             ].some(el => el.style.display === 'block');
-            
-            if (!anyOpen) {
-                modalOverlay.style.display = 'none';
-            }
+            if (!anyOpen) modalOverlay.style.display = 'none';
         }
 
         function updateNodeDisplay(node) {
@@ -888,18 +942,40 @@
             return transitions.map((t, i) => `${i + 1}. ${t.name || ''}`).join('\n');
         }
 
+        // 古いデータとの互換性・ノーマライズ
         function normalizeGraphData() {
+            let colorMap = cy.data('colorMap') || {};
+            let mapUpdated = false;
+
             cy.nodes().forEach(node => {
-                const color = normalizeColor(node.data('color') || '#3498db');
-                node.data('color', color);
-                node.style('background-color', color);
-                if (node.data('groupName') == null) node.data('groupName', '');
+                let colors = node.data('colors');
+                if (!colors || !Array.isArray(colors)) {
+                    let oldColor = normalizeColor(node.data('color') || '#3498db');
+                    colors = [oldColor];
+                    node.data('colors', colors);
+                }
+
+                // 過去の単一のgroupNameがあれば全体マップへ統合
+                let oldGroupName = (node.data('groupName') || '').trim();
+                if (oldGroupName && colors.length > 0) {
+                    if (!colorMap[colors[0]]) {
+                        colorMap[colors[0]] = oldGroupName;
+                        mapUpdated = true;
+                    }
+                }
+
                 if (!node.data('rawName')) {
                     const oldLabel = node.data('label') || '';
                     node.data('rawName', oldLabel.replace(/\n?🔗/g, ''));
                 }
+
                 updateNodeDisplay(node);
+                applyNodePieStyle(node);
             });
+
+            if (mapUpdated || !cy.data('colorMap')) {
+                cy.data('colorMap', colorMap);
+            }
 
             cy.edges('[edgeType="trans"]').forEach(edge => {
                 const transitions = edge.data('transitions') || (edge.data('label') ? [{ name: edge.data('label'), url: '' }] : []);
@@ -913,34 +989,29 @@
 
         function updateGroupLegend() {
             const list = document.getElementById('group-legend-list');
-            const groups = new Map();
+            const colorMap = cy.data('colorMap') || {};
+            const usedColors = new Map();
 
             cy.nodes().forEach(node => {
-                const color = normalizeColor(node.data('color') || '#3498db');
-                const groupName = (node.data('groupName') || '').trim();
-                if (!groups.has(color)) {
-                    groups.set(color, { color: color, name: groupName, count: 0 });
-                }
-                const entry = groups.get(color);
-                entry.count += 1;
-                if (!entry.name && groupName) {
-                    entry.name = groupName;
-                }
+                let colors = node.data('colors') || [];
+                colors.forEach(c => {
+                    usedColors.set(c, (usedColors.get(c) || 0) + 1);
+                });
             });
 
-            if (groups.size === 0) {
-                list.innerHTML = '<div class="legend-empty">技を追加するとここに色ごとのグループが表示されます。</div>';
+            if (usedColors.size === 0) {
+                list.innerHTML = '<div class="legend-empty">技を追加すると色ごとのグループが表示されます。</div>';
                 return;
             }
 
             list.innerHTML = '';
-            Array.from(groups.values())
-                .sort((a, b) => b.count - a.count)
-                .forEach(group => {
+            Array.from(usedColors.entries())
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([color, count]) => {
                     const item = document.createElement('div');
                     item.className = 'legend-item';
-                    const displayName = group.name ? group.name : '(名前なし)';
-                    item.innerHTML = `<span class="legend-swatch" style="background:${group.color}"></span><span>${displayName} (${group.count})</span>`;
+                    const displayName = colorMap[color] || '(名前なし)';
+                    item.innerHTML = `<span class="legend-swatch" style="background:${color}"></span><span>${displayName} (${count})</span>`;
                     list.appendChild(item);
                 });
         }
@@ -980,13 +1051,12 @@
 
         function openNodeEditor(node) {
             editingNode = node;
-            const color = normalizeColor(node.data('color') || '#3498db');
             document.getElementById('node-name-input').value = node.data('rawName') || '';
             document.getElementById('node-url-input').value = node.data('url') || '';
-            const existingGroupName = getExistingGroupName(color);
-            document.getElementById('node-group-input').value = existingGroupName || node.data('groupName') || '';
-            document.getElementById('node-color-input').value = color;
-            updatePaletteSelection(document.getElementById('modal-color-palette'), color);
+            
+            let colors = node.data('colors') || [];
+            modalPalette.setSelectedColors(colors);
+
             openOverlay();
             nodeEditor.style.display = 'block';
         }
@@ -1042,18 +1112,19 @@
             const newName = document.getElementById('node-name-input').value.trim();
             if (!newName) return alert('技名を入力してください。');
             const newUrl = document.getElementById('node-url-input').value.trim();
-            const newColor = normalizeColor(document.getElementById('node-color-input').value);
-            const newGroup = document.getElementById('node-group-input').value.trim();
             
-            editingNode.data({ rawName: newName, url: newUrl, color: newColor, groupName: newGroup });
-            editingNode.style('background-color', newColor);
+            const newColors = modalPalette.getSelectedColors();
+            
+            editingNode.data({ 
+                rawName: newName, 
+                url: newUrl, 
+                colors: newColors,
+                color: newColors[0] || '#3498db'
+            });
+
             updateNodeDisplay(editingNode);
-            syncColorGroups(newColor, newGroup);
+            applyNodePieStyle(editingNode);
             pushUndo('edit', { ele: editingNode, oldData: oldData });
-            
-            document.getElementById('node-color').value = newColor;
-            updatePaletteSelection(document.getElementById('toolbar-color-palette'), newColor);
-            document.getElementById('group-name-input').value = newGroup;
             
             updateGroupLegend();
             closeNodeEditor();
@@ -1075,7 +1146,7 @@
                 newTransitions.push({ name: nameVal, url: urlVal });
             });
 
-            if (!isValid) return alert('遷移名が空欄の項目があります。不要な場合は削除ボタンを押してください。');
+            if (!isValid) return alert('遷移名が空欄の項目があります。');
 
             editingEdge.data({
                 transitions: newTransitions,
@@ -1097,19 +1168,26 @@
         document.getElementById('add-node-btn').addEventListener('click', () => {
             const rawName = prompt('技名を入力してください (改行も使えます):');
             if (!rawName) return;
-            const selectedColor = normalizeColor(document.getElementById('node-color').value);
-            const groupName = document.getElementById('group-name-input').value.trim();
+            
+            const selectedColors = toolbarPalette.getSelectedColors();
             const normalizedName = rawName.replace(/\\n/g, '\n');
             const newId = 'node_' + Date.now();
             
             const newNode = cy.add({
                 group: 'nodes',
-                data: { id: newId, label: normalizedName, rawName: normalizedName, url: '', color: selectedColor, groupName: groupName },
+                data: { 
+                    id: newId, 
+                    label: normalizedName, 
+                    rawName: normalizedName, 
+                    url: '', 
+                    colors: selectedColors,
+                    color: selectedColors[0] || '#3498db'
+                },
                 position: { x: cy.width() / 2, y: cy.height() / 2 }
             });
-            newNode.style('background-color', selectedColor);
+
             updateNodeDisplay(newNode);
-            syncColorGroups(selectedColor, groupName);
+            applyNodePieStyle(newNode);
             pushUndo('add', newNode.jsons());
             updateGroupLegend();
             setMode('view');
@@ -1251,11 +1329,11 @@
                 lastAction.data.forEach(d => cy.getElementById(d.data.id).remove());
             } else if (lastAction.action === 'remove') {
                 const restored = cy.add(lastAction.data);
-                restored.nodes().forEach(n => n.style('background-color', normalizeColor(n.data('color') || '#3498db')));
+                restored.nodes().forEach(n => applyNodePieStyle(n));
             } else if (lastAction.action === 'edit') {
                 lastAction.data.ele.data(lastAction.data.oldData.data);
                 if (lastAction.data.ele.isNode()) {
-                    lastAction.data.ele.style('background-color', normalizeColor(lastAction.data.ele.data('color') || '#3498db'));
+                    applyNodePieStyle(lastAction.data.ele);
                 }
             }
             normalizeGraphData();
@@ -1266,7 +1344,6 @@
             cy.layout({ name: 'breadthfirst', directed: true, padding: 50, spacingFactor: 1.5 }).run();
         });
 
-        // ローカル保存・読込（未ログイン時用）
         document.getElementById('local-save-btn').addEventListener('click', () => {
             const data = cy.json();
             const jsonStr = JSON.stringify(data, null, 2);
@@ -1293,13 +1370,16 @@
                     normalizeGraphData();
                     updateGroupLegend();
                 } catch (err) {
-                    alert('ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。');
+                    alert('ファイルの読み込みに失敗しました。');
                 }
             };
             reader.readAsText(file);
             evt.target.value = '';
         });
 
+        // 起動時の初期化
+        toolbarPalette.init();
+        modalPalette.init();
         normalizeGraphData();
         updateGroupLegend();
     </script>

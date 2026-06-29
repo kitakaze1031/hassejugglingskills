@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ハッセ図エディタ（クラウド保存対応版）</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
-    <!-- Supabaseのプログラムを読み込む -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         html, body {
@@ -344,7 +343,6 @@
         <button id="local-load-btn" class="btn-io" onclick="document.getElementById('file-input').click()">📂 ローカル読込</button>
         <input type="file" id="file-input" style="display: none;" accept=".json">
 
-        <!-- ログインボタン周り -->
         <button id="login-btn" class="btn-auth">🔑 Googleログイン</button>
         <button id="logout-btn" class="btn-auth" style="display: none;">🚪 ログアウト</button>
         <span id="user-info"></span>
@@ -405,15 +403,10 @@
 
     <script>
         // ==========================================
-        // Supabase の初期化（ご提示いただいた情報をそのまま埋め込み）
-        // ==========================================
-// ==========================================
-        // Supabase の初期化（変数名を sb に変更して衝突を回避）
+        // Supabase の初期化（名前衝突を完全に回避するため sb に統一）
         // ==========================================
         const SUPABASE_URL = 'https://fqipmvzalmfyywshtvoe.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxaXBtdnphbG1meXl3c2h0dm9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NDQzODMsImV4cCI6MjA5ODIyMDM4M30.E89j8-fBbOxmoCOx-LWva7JMHOPq2XK-qxyw3V1vuzE';
-        
-        // 💡 名前衝突を防ぐため、変数名を 'sb' に変更しました
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
@@ -504,36 +497,6 @@
             btn.textContent = '読込中...';
 
             const { data, error } = await sb
-                .from('trees')
-                .select('graph_data')
-                .eq('user_id', currentUser.id)
-                .single();
-
-            btn.textContent = '☁️ クラウド読込';
-            
-            if (error) {
-                console.error(error);
-                if (error.code === 'PGRST116') {
-                    alert('保存されたデータが見つかりません。先に保存してください。');
-                } else {
-                    alert('読込に失敗しました: ' + error.message);
-                }
-            } else if (data && data.graph_data) {
-                cy.json(data.graph_data);
-                undoStack = [];
-                normalizeGraphData();
-                updateGroupLegend();
-                alert('クラウドから読み込みました！');
-            }
-        });
-
-        // クラウド読込処理
-        document.getElementById('cloud-load-btn').addEventListener('click', async () => {
-            if (!currentUser) return alert('ログインしてください。');
-            const btn = document.getElementById('cloud-load-btn');
-            btn.textContent = '読込中...';
-
-            const { data, error } = await supabase
                 .from('trees')
                 .select('graph_data')
                 .eq('user_id', currentUser.id)

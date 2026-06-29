@@ -364,6 +364,14 @@
         <button class="modal-btn close-btn" onclick="closeModal()">閉じる</button>
     </div>
 
+    <div id="cloud-load-modal" class="floating-modal" style="max-height: 80vh; overflow-y: auto;">
+        <h3>クラウドから読み込み</h3>
+        <p style="font-size: 12px; color: #666; text-align: center; margin-bottom: 12px;">開きたいファイルを選択してください</p>
+        <div id="cloud-load-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+            </div>
+        <button class="modal-btn close-btn" onclick="closeCloudLoadModal()">閉じる</button>
+    </div>
+
     <div id="node-editor" class="floating-modal">
         <h3>技を編集</h3>
         <div class="modal-field">
@@ -403,16 +411,17 @@
 
     <script>
         // ==========================================
-        // Supabase の初期化（名前衝突を完全に回避するため sb に統一）
+        // Supabase の初期化
         // ==========================================
         const SUPABASE_URL = 'https://fqipmvzalmfyywshtvoe.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxaXBtdnphbG1meXl3c2h0dm9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NDQzODMsImV4cCI6MjA5ODIyMDM4M30.E89j8-fBbOxmoCOx-LWva7JMHOPq2XK-qxyw3V1vuzE';
-        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
+        let currentTreeTitle = ''; // 現在開いているデータのファイル名を記憶する変数
 
         // ログイン状態の監視
-        sb.auth.onAuthStateChange((event, session) => {
+        supabase.auth.onAuthStateChange((event, session) => {
             currentUser = session?.user || null;
             updateAuthUI();
         });
@@ -450,78 +459,122 @@
 
         // Googleログインボタン
         document.getElementById('login-btn').addEventListener('click', async () => {
-            const { error } = await sb.auth.signInWithOAuth({
+            const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
-                options: {
-                    // 💡 ログイン後に、今開いているGitHub PagesのURLに自動で戻す設定です
-                    redirectTo: window.location.origin + window.location.pathname
-                }
             });
             if (error) alert('ログインエラー: ' + error.message);
         });
 
         // ログアウトボタン
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            const { error } = await sb.auth.signOut();
+            const { error } = await supabase.auth.signOut();
             if (error) alert('ログアウトエラー: ' + error.message);
         });
 
-        // クラウド保存処理
+        // クラウド保存処理（複数ファイル名対応版）
         document.getElementById('cloud-save-btn').addEventListener('click', async () => {
             if (!currentUser) return alert('ログインしてください。');
+
+            // ファイル名の入力を促す
+            const defaultTitle = currentTreeTitle || '無題のハッセ図';
+            const title = prompt('保存するファイル名を入力してください:', defaultTitle);
+            if (!title || !title.trim()) return; // キャンセルされたか空欄なら中止
+
+            const trimmedTitle = title.trim();
             const btn = document.getElementById('cloud-save-btn');
             btn.textContent = '保存中...';
 
             const graphData = cy.json();
-            const { data, error } = await sb
+            const { data, error } = await supabase
                 .from('trees')
                 .upsert({
                     user_id: currentUser.id,
-                    title: 'My Default Tree',
+                    title: trimmedTitle,
                     graph_data: graphData
-                }, { onConflict: 'user_id' });
+                }, { onConflict: 'user_id,title' }); // ユーザーIDとタイトルが一致したら上書き
 
             btn.textContent = '☁️ クラウド保存';
             if (error) {
                 console.error(error);
-                alert('保存に失敗しました: ' + error.message + '\n\n※もしかして、Supabaseにデータを保存するための「箱（テーブル）」をまだ作っていませんか？');
+                alert('保存に失敗しました: ' + error.message);
             } else {
-                alert('クラウドに保存しました！');
+                currentTreeTitle = trimmedTitle; // 現在開いているファイル名をセット
+                alert(`クラウドに「${trimmedTitle}」として保存しました！`);
             }
         });
 
-        // クラウド読込処理
+        // クラウド読込処理（一覧表示・選択対応版）
+        const cloudLoadModal = document.getElementById('cloud-load-modal');
+        const cloudLoadList = document.getElementById('cloud-load-list');
+
+        function closeCloudLoadModal() {
+            cloudLoadModal.style.display = 'none';
+            closeOverlayIfUnused();
+        }
+
         document.getElementById('cloud-load-btn').addEventListener('click', async () => {
             if (!currentUser) return alert('ログインしてください。');
             const btn = document.getElementById('cloud-load-btn');
-            btn.textContent = '読込中...';
+            btn.textContent = '一覧取得中...';
 
-            const { data, error } = await sb
+            // 保存されているファイル名の一覧を取得
+            const { data, error } = await supabase
                 .from('trees')
-                .select('graph_data')
+                .select('title')
                 .eq('user_id', currentUser.id)
-                .single();
+                .order('updated_at', { ascending: false });
 
             btn.textContent = '☁️ クラウド読込';
             
             if (error) {
                 console.error(error);
-                if (error.code === 'PGRST116') {
-                    alert('保存されたデータが見つかりません。先に保存してください。');
-                } else {
-                    alert('読込に失敗しました: ' + error.message);
-                }
+                return alert('一覧の取得に失敗しました: ' + error.message);
+            }
+
+            if (!data || data.length === 0) {
+                return alert('保存されたデータが見つかりません。先に一度「クラウド保存」してください。');
+            }
+
+            // モーダル内にファイル一覧のボタンを並べる
+            cloudLoadList.innerHTML = '';
+            data.forEach(item => {
+                const fileBtn = document.createElement('button');
+                fileBtn.className = 'modal-btn secondary';
+                fileBtn.style.textAlign = 'left';
+                fileBtn.textContent = `📄 ${item.title}`;
+                fileBtn.addEventListener('click', () => loadSpecificTree(item.title));
+                cloudLoadList.appendChild(fileBtn);
+            });
+
+            openOverlay();
+            cloudLoadModal.style.display = 'block';
+        });
+
+        // 指定されたファイル名のデータを読み込む関数
+        async function loadSpecificTree(title) {
+            const { data, error } = await supabase
+                .from('trees')
+                .select('graph_data')
+                .eq('user_id', currentUser.id)
+                .eq('title', title)
+                .single();
+
+            if (error) {
+                console.error(error);
+                alert('読込に失敗しました: ' + error.message);
             } else if (data && data.graph_data) {
                 cy.json(data.graph_data);
                 undoStack = [];
+                currentTreeTitle = title; // 現在開いているファイル名を上書き
                 normalizeGraphData();
                 updateGroupLegend();
-                alert('クラウドから読み込みました！');
+                closeCloudLoadModal();
+                alert(`「${title}」を読み込みました！`);
             }
-        });
+        }
 
         // ==========================================
-        // 以降は元のハッセ図エディタのプログラム
+        // ハッセ図エディタのプログラム
         // ==========================================
 
         const PRESET_COLORS = [
@@ -734,7 +787,7 @@
         }
 
         function closeOverlayIfUnused() {
-            const anyOpen = [linkModal, nodeEditor, transEditor].some(el => el.style.display === 'block');
+            const anyOpen = [linkModal, nodeEditor, transEditor, cloudLoadModal].some(el => el.style.display === 'block');
             if (!anyOpen) {
                 modalOverlay.style.display = 'none';
             }
@@ -1104,6 +1157,7 @@
             closeModal();
             closeNodeEditor();
             closeTransEditor();
+            closeCloudLoadModal();
         });
 
         document.getElementById('undo-btn').addEventListener('click', () => {

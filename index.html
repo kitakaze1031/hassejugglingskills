@@ -407,14 +407,19 @@
         // ==========================================
         // Supabase の初期化（ご提示いただいた情報をそのまま埋め込み）
         // ==========================================
+// ==========================================
+        // Supabase の初期化（変数名を sb に変更して衝突を回避）
+        // ==========================================
         const SUPABASE_URL = 'https://fqipmvzalmfyywshtvoe.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxaXBtdnphbG1meXl3c2h0dm9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NDQzODMsImV4cCI6MjA5ODIyMDM4M30.E89j8-fBbOxmoCOx-LWva7JMHOPq2XK-qxyw3V1vuzE';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // 💡 名前衝突を防ぐため、変数名を 'sb' に変更しました
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
 
         // ログイン状態の監視
-        supabase.auth.onAuthStateChange((event, session) => {
+        sb.auth.onAuthStateChange((event, session) => {
             currentUser = session?.user || null;
             updateAuthUI();
         });
@@ -452,15 +457,19 @@
 
         // Googleログインボタン
         document.getElementById('login-btn').addEventListener('click', async () => {
-            const { error } = await supabase.auth.signInWithOAuth({
+            const { error } = await sb.auth.signInWithOAuth({
                 provider: 'google',
+                options: {
+                    // 💡 ログイン後に、今開いているGitHub PagesのURLに自動で戻す設定です
+                    redirectTo: window.location.origin + window.location.pathname
+                }
             });
             if (error) alert('ログインエラー: ' + error.message);
         });
 
         // ログアウトボタン
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            const { error } = await supabase.auth.signOut();
+            const { error } = await sb.auth.signOut();
             if (error) alert('ログアウトエラー: ' + error.message);
         });
 
@@ -471,7 +480,7 @@
             btn.textContent = '保存中...';
 
             const graphData = cy.json();
-            const { data, error } = await supabase
+            const { data, error } = await sb
                 .from('trees')
                 .upsert({
                     user_id: currentUser.id,
@@ -485,6 +494,36 @@
                 alert('保存に失敗しました: ' + error.message + '\n\n※もしかして、Supabaseにデータを保存するための「箱（テーブル）」をまだ作っていませんか？');
             } else {
                 alert('クラウドに保存しました！');
+            }
+        });
+
+        // クラウド読込処理
+        document.getElementById('cloud-load-btn').addEventListener('click', async () => {
+            if (!currentUser) return alert('ログインしてください。');
+            const btn = document.getElementById('cloud-load-btn');
+            btn.textContent = '読込中...';
+
+            const { data, error } = await sb
+                .from('trees')
+                .select('graph_data')
+                .eq('user_id', currentUser.id)
+                .single();
+
+            btn.textContent = '☁️ クラウド読込';
+            
+            if (error) {
+                console.error(error);
+                if (error.code === 'PGRST116') {
+                    alert('保存されたデータが見つかりません。先に保存してください。');
+                } else {
+                    alert('読込に失敗しました: ' + error.message);
+                }
+            } else if (data && data.graph_data) {
+                cy.json(data.graph_data);
+                undoStack = [];
+                normalizeGraphData();
+                updateGroupLegend();
+                alert('クラウドから読み込みました！');
             }
         });
 

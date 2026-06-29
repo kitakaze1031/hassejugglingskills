@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ハッセ図エディタ（クラウド保存対応版）</title>
+    <title>ハッセ図エディタ（クラウド保存・管理対応版）</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -44,7 +44,7 @@
             border-radius: 4px;
         }
 
-        button {
+        button, select {
             flex-shrink: 0;
             padding: 10px 14px;
             background-color: #34495e;
@@ -158,7 +158,7 @@
 
         input[type="text"],
         input[type="url"],
-        textarea {
+        textarea, select {
             width: 100%;
             box-sizing: border-box;
             border: 1px solid #cfd8dc;
@@ -364,7 +364,26 @@
         <button class="modal-btn close-btn" onclick="closeModal()">閉じる</button>
     </div>
 
-    <div id="cloud-load-modal" class="floating-modal" style="max-height: 80vh; overflow-y: auto;">
+    <div id="cloud-save-modal" class="floating-modal">
+        <h3>クラウドに保存</h3>
+        <div class="modal-field">
+            <label for="cloud-title-input">ファイル名</label>
+            <input type="text" id="cloud-title-input" placeholder="ファイル名を入力">
+        </div>
+        <div class="modal-field">
+            <label for="cloud-status-select">公開設定（今後の機能用）</label>
+            <select id="cloud-status-select" style="color: #2c3e50; font-weight: bold; background-color: #fff;">
+                <option value="private">🔒 非公開 (自分だけ)</option>
+                <option value="unlisted">🔗 限定公開 (リンクを知っている人のみ・編集不可)</option>
+                <option value="public_readonly">👁 公開 (誰でも閲覧可・編集不可)</option>
+                <option value="public_writable">✏️ 共同編集 (誰でも閲覧・編集可)</option>
+            </select>
+        </div>
+        <button id="cloud-save-confirm-btn" class="modal-btn">保存する</button>
+        <button class="modal-btn close-btn" onclick="closeCloudSaveModal()">閉じる</button>
+    </div>
+
+    <div id="cloud-load-modal" class="floating-modal" style="max-height: 80vh; overflow-y: auto; max-width: 420px; width: 92%;">
         <h3>クラウドから読み込み</h3>
         <p style="font-size: 12px; color: #666; text-align: center; margin-bottom: 12px;">開きたいファイルを選択してください</p>
         <div id="cloud-load-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
@@ -418,7 +437,8 @@
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
-        let currentTreeTitle = ''; // 現在開いているデータのファイル名を記憶する変数
+        let currentTreeTitle = ''; // 現在開いているデータのファイル名を記憶
+        let currentTreeStatus = 'private'; // 現在の公開設定を記憶
 
         // ログイン状態の監視
         sb.auth.onAuthStateChange((event, session) => {
@@ -457,7 +477,7 @@
             }
         }
 
-        // Googleログインボタン（リダイレクト対策済）
+        // Googleログインボタン
         document.getElementById('login-btn').addEventListener('click', async () => {
             const { error } = await sb.auth.signInWithOAuth({
                 provider: 'google',
@@ -474,17 +494,27 @@
             if (error) alert('ログアウトエラー: ' + error.message);
         });
 
-        // クラウド保存処理（複数ファイル名対応版）
-        document.getElementById('cloud-save-btn').addEventListener('click', async () => {
+        // クラウド保存用モーダルの開閉
+        function closeCloudSaveModal() {
+            document.getElementById('cloud-save-modal').style.display = 'none';
+            closeOverlayIfUnused();
+        }
+
+        document.getElementById('cloud-save-btn').addEventListener('click', () => {
             if (!currentUser) return alert('ログインしてください。');
+            document.getElementById('cloud-title-input').value = currentTreeTitle || '無題のハッセ図';
+            document.getElementById('cloud-status-select').value = currentTreeStatus || 'private';
+            openOverlay();
+            document.getElementById('cloud-save-modal').style.display = 'block';
+        });
 
-            // ファイル名の入力を促す
-            const defaultTitle = currentTreeTitle || '無題のハッセ図';
-            const title = prompt('保存するファイル名を入力してください:', defaultTitle);
-            if (!title || !title.trim()) return; // キャンセルされたか空欄なら中止
+        // 実際のクラウド保存処理
+        document.getElementById('cloud-save-confirm-btn').addEventListener('click', async () => {
+            const title = document.getElementById('cloud-title-input').value.trim();
+            if (!title) return alert('ファイル名を入力してください。');
+            const status = document.getElementById('cloud-status-select').value;
 
-            const trimmedTitle = title.trim();
-            const btn = document.getElementById('cloud-save-btn');
+            const btn = document.getElementById('cloud-save-confirm-btn');
             btn.textContent = '保存中...';
 
             const graphData = cy.json();
@@ -492,21 +522,24 @@
                 .from('trees')
                 .upsert({
                     user_id: currentUser.id,
-                    title: trimmedTitle,
-                    graph_data: graphData
-                }, { onConflict: 'user_id,title' }); // ユーザーIDとタイトルが一致したら上書き
+                    title: title,
+                    graph_data: graphData,
+                    status: status
+                }, { onConflict: 'user_id,title' });
 
-            btn.textContent = '☁️ クラウド保存';
+            btn.textContent = '保存する';
             if (error) {
                 console.error(error);
                 alert('保存に失敗しました: ' + error.message);
             } else {
-                currentTreeTitle = trimmedTitle; // 現在開いているファイル名をセット
-                alert(`クラウドに「${trimmedTitle}」として保存しました！`);
+                currentTreeTitle = title;
+                currentTreeStatus = status;
+                closeCloudSaveModal();
+                alert(`クラウドに「${title}」として保存しました！`);
             }
         });
 
-        // クラウド読込処理（一覧表示・選択対応版）
+        // クラウド読込モーダルの開閉
         const cloudLoadModal = document.getElementById('cloud-load-modal');
         const cloudLoadList = document.getElementById('cloud-load-list');
 
@@ -520,10 +553,10 @@
             const btn = document.getElementById('cloud-load-btn');
             btn.textContent = '一覧取得中...';
 
-            // 保存されているファイル名の一覧を取得
+            // 保存されているファイル名とステータスを取得
             const { data, error } = await sb
                 .from('trees')
-                .select('title')
+                .select('title, status')
                 .eq('user_id', currentUser.id)
                 .order('updated_at', { ascending: false });
 
@@ -538,15 +571,57 @@
                 return alert('保存されたデータが見つかりません。先に一度「クラウド保存」してください。');
             }
 
-            // モーダル内にファイル一覧のボタンを並べる
+            // モーダル内にファイル一覧と【削除ボタン】を配置
             cloudLoadList.innerHTML = '';
             data.forEach(item => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.gap = '8px';
+                row.style.alignItems = 'center';
+                row.style.marginBottom = '4px';
+
+                // ステータスに応じたアイコン
+                let statusIcon = '🔒';
+                if (item.status === 'unlisted') statusIcon = '🔗';
+                if (item.status === 'public_readonly') statusIcon = '👁';
+                if (item.status === 'public_writable') statusIcon = '✏️';
+
                 const fileBtn = document.createElement('button');
                 fileBtn.className = 'modal-btn secondary';
                 fileBtn.style.textAlign = 'left';
-                fileBtn.textContent = `📄 ${item.title}`;
+                fileBtn.style.margin = '0';
+                fileBtn.style.flex = '1';
+                fileBtn.textContent = `${statusIcon} ${item.title}`;
                 fileBtn.addEventListener('click', () => loadSpecificTree(item.title));
-                cloudLoadList.appendChild(fileBtn);
+
+                const delBtn = document.createElement('button');
+                delBtn.textContent = '🗑';
+                delBtn.style.backgroundColor = '#e74c3c';
+                delBtn.style.padding = '12px';
+                delBtn.style.borderRadius = '8px';
+                delBtn.style.cursor = 'pointer';
+                delBtn.title = 'このデータを削除';
+                delBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (!confirm(`本当に「${item.title}」をクラウドから完全に削除しますか？\nこの操作は取り消せません。`)) return;
+                    
+                    const { error: delError } = await sb
+                        .from('trees')
+                        .delete()
+                        .eq('user_id', currentUser.id)
+                        .eq('title', item.title);
+
+                    if (delError) {
+                        alert('削除に失敗しました: ' + delError.message);
+                    } else {
+                        alert(`「${item.title}」を削除しました。`);
+                        document.getElementById('cloud-load-btn').click(); // リストを再読込
+                    }
+                });
+
+                row.appendChild(fileBtn);
+                row.appendChild(delBtn);
+                cloudLoadList.appendChild(row);
             });
 
             openOverlay();
@@ -557,7 +632,7 @@
         async function loadSpecificTree(title) {
             const { data, error } = await sb
                 .from('trees')
-                .select('graph_data')
+                .select('graph_data, status')
                 .eq('user_id', currentUser.id)
                 .eq('title', title)
                 .single();
@@ -568,7 +643,8 @@
             } else if (data && data.graph_data) {
                 cy.json(data.graph_data);
                 undoStack = [];
-                currentTreeTitle = title; // 現在開いているファイル名を上書き
+                currentTreeTitle = title;
+                currentTreeStatus = data.status || 'private'; // ステータスを読み込む
                 normalizeGraphData();
                 updateGroupLegend();
                 closeCloudLoadModal();
@@ -790,7 +866,11 @@
         }
 
         function closeOverlayIfUnused() {
-            const anyOpen = [linkModal, nodeEditor, transEditor, cloudLoadModal].some(el => el.style.display === 'block');
+            const anyOpen = [
+                linkModal, nodeEditor, transEditor, cloudLoadModal, 
+                document.getElementById('cloud-save-modal')
+            ].some(el => el.style.display === 'block');
+            
             if (!anyOpen) {
                 modalOverlay.style.display = 'none';
             }
@@ -1161,6 +1241,7 @@
             closeNodeEditor();
             closeTransEditor();
             closeCloudLoadModal();
+            closeCloudSaveModal();
         });
 
         document.getElementById('undo-btn').addEventListener('click', () => {

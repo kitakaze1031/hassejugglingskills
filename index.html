@@ -348,12 +348,36 @@
         <button class="modal-btn close-btn" onclick="closeFilterModal()">閉じる</button>
     </div>
 
-    <div id="explore-modal" class="floating-modal" style="max-height: 85vh; overflow-y: auto; max-width: 480px; width: 95%;">
+    <div id="explore-modal" class="floating-modal" style="max-height: 90vh; overflow-y: auto; max-width: 480px; width: 95%;">
         <h3>🌐 みんなのハッセ図を探す</h3>
         <p class="hint-text" style="text-align:center; margin-bottom:12px;">公開されている他の人のハッセ図を検索できます。</p>
         <div class="modal-field" style="display:flex; gap:8px;">
             <input type="text" id="explore-search-input" placeholder="タグ(#技名)、タイトル、図の中の技名で検索..." style="flex:1;">
             <button id="explore-execute-btn" class="modal-btn" style="width:auto; margin:0; padding:10px 16px;">検索</button>
+        </div>
+        <div class="modal-field" style="margin-top:4px;">
+            <p class="hint-text" style="margin:0 0 6px 0;">下のチップをタップで検索ワードに追加/解除できます（複数選択でAND検索）。</p>
+
+            <div class="tag-preset-section">
+                <div class="tag-preset-title">🎪 道具から選ぶ</div>
+                <div id="search-tag-preset-tools" class="tag-chip-container"></div>
+            </div>
+
+            <div class="tag-preset-section">
+                <div class="tag-preset-title">🎯 目的から選ぶ</div>
+                <div id="search-tag-preset-purposes" class="tag-chip-container"></div>
+            </div>
+
+            <div class="tag-preset-section">
+                <div class="tag-preset-title">
+                    <span>📚 みんなが使っているタグ</span>
+                    <span id="search-existing-tags-count" class="count-badge">-</span>
+                    <button type="button" id="search-reload-existing-tags-btn" class="tag-toggle-btn">🔄 取得</button>
+                </div>
+                <div id="search-tag-preset-existing" class="tag-chip-container">
+                    <div class="tag-empty-msg">「🔄 取得」ボタンを押すと既存のタグ一覧を表示します。</div>
+                </div>
+            </div>
         </div>
         <div id="explore-results-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px; max-height: 40vh; overflow-y: auto;">
             </div>
@@ -539,9 +563,27 @@
         ];
         let existingTagsCache = null;
 
-        // 現在の入力欄からタグ集合を取得（すべて#始まりに正規化）
-        function getCurrentTagSet() {
-            const raw = document.getElementById('cloud-tags-input').value.trim();
+        // タグプリセットの設定（保存用 / 検索用で共通ロジックを共有）
+        const TAG_PRESET_CONTEXTS = {
+            save: {
+                inputId: 'cloud-tags-input',
+                toolsId: 'tag-preset-tools',
+                purposesId: 'tag-preset-purposes',
+                existingId: 'tag-preset-existing',
+                countId: 'existing-tags-count'
+            },
+            search: {
+                inputId: 'explore-search-input',
+                toolsId: 'search-tag-preset-tools',
+                purposesId: 'search-tag-preset-purposes',
+                existingId: 'search-tag-preset-existing',
+                countId: 'search-existing-tags-count'
+            }
+        };
+
+        // 指定した入力欄からタグ集合を取得（すべて#始まりに正規化）
+        function getTagSetFromInput(inputId) {
+            const raw = document.getElementById(inputId).value.trim();
             if (!raw) return new Set();
             return new Set(
                 raw.split(/\s+/)
@@ -551,54 +593,54 @@
         }
 
         // タグ集合を入力欄に反映
-        function setTagSet(set) {
-            document.getElementById('cloud-tags-input').value = Array.from(set).join(' ');
-            renderTagPresets();
+        function setTagSetToInput(ctx, set) {
+            document.getElementById(ctx.inputId).value = Array.from(set).join(' ');
+            renderTagPresetsFor(ctx);
         }
 
         // トグル（選択中なら外し、そうでなければ追加）
-        function toggleTag(tag) {
+        function toggleTagFor(ctx, tag) {
             const normalized = tag.startsWith('#') ? tag : '#' + tag;
-            const set = getCurrentTagSet();
+            const set = getTagSetFromInput(ctx.inputId);
             if (set.has(normalized)) set.delete(normalized);
             else set.add(normalized);
-            setTagSet(set);
+            setTagSetToInput(ctx, set);
         }
 
-        // プリセットチップを描画
-        function renderTagPresets() {
-            const activeSet = getCurrentTagSet();
+        // プリセットチップを描画（任意のコンテキスト）
+        function renderTagPresetsFor(ctx) {
+            const activeSet = getTagSetFromInput(ctx.inputId);
 
-            const toolsEl = document.getElementById('tag-preset-tools');
+            const toolsEl = document.getElementById(ctx.toolsId);
             toolsEl.innerHTML = '';
             PRESET_TOOLS.forEach(name => {
                 const tag = '#' + name;
                 const chip = document.createElement('span');
                 chip.className = 'tag-chip' + (activeSet.has(tag) ? ' active' : '');
                 chip.textContent = tag;
-                chip.addEventListener('click', () => toggleTag(tag));
+                chip.addEventListener('click', () => toggleTagFor(ctx, tag));
                 toolsEl.appendChild(chip);
             });
 
-            const purposesEl = document.getElementById('tag-preset-purposes');
+            const purposesEl = document.getElementById(ctx.purposesId);
             purposesEl.innerHTML = '';
             PRESET_PURPOSES.forEach(name => {
                 const tag = '#' + name;
                 const chip = document.createElement('span');
                 chip.className = 'tag-chip purpose' + (activeSet.has(tag) ? ' active' : '');
                 chip.textContent = tag;
-                chip.addEventListener('click', () => toggleTag(tag));
+                chip.addEventListener('click', () => toggleTagFor(ctx, tag));
                 purposesEl.appendChild(chip);
             });
 
-            renderExistingTags();
+            renderExistingTagsFor(ctx);
         }
 
-        // 既存タグを描画
-        function renderExistingTags() {
-            const existingEl = document.getElementById('tag-preset-existing');
-            const countEl = document.getElementById('existing-tags-count');
-            const activeSet = getCurrentTagSet();
+        // 既存タグを描画（任意のコンテキスト）
+        function renderExistingTagsFor(ctx) {
+            const existingEl = document.getElementById(ctx.existingId);
+            const countEl = document.getElementById(ctx.countId);
+            const activeSet = getTagSetFromInput(ctx.inputId);
 
             if (existingTagsCache === null) {
                 countEl.textContent = '-';
@@ -612,7 +654,6 @@
             }
 
             existingEl.innerHTML = '';
-            // プリセットと重複しないものだけ表示
             const presetSet = new Set([
                 ...PRESET_TOOLS.map(t => '#' + t),
                 ...PRESET_PURPOSES.map(t => '#' + t)
@@ -628,10 +669,17 @@
                 const chip = document.createElement('span');
                 chip.className = 'tag-chip existing' + (activeSet.has(tag) ? ' active' : '');
                 chip.textContent = tag;
-                chip.addEventListener('click', () => toggleTag(tag));
+                chip.addEventListener('click', () => toggleTagFor(ctx, tag));
                 existingEl.appendChild(chip);
             });
         }
+
+        // 下位互換：保存モーダル用の既存API
+        function getCurrentTagSet() { return getTagSetFromInput(TAG_PRESET_CONTEXTS.save.inputId); }
+        function setTagSet(set) { setTagSetToInput(TAG_PRESET_CONTEXTS.save, set); }
+        function toggleTag(tag) { toggleTagFor(TAG_PRESET_CONTEXTS.save, tag); }
+        function renderTagPresets() { renderTagPresetsFor(TAG_PRESET_CONTEXTS.save); }
+        function renderExistingTags() { renderExistingTagsFor(TAG_PRESET_CONTEXTS.save); }
 
         // Supabaseから既存タグを集計取得（自分 + 公開・限定公開）
         async function fetchExistingTags() {
@@ -678,9 +726,23 @@
             }
         }
 
-        document.getElementById('reload-existing-tags-btn').addEventListener('click', fetchExistingTags);
+        document.getElementById('reload-existing-tags-btn').addEventListener('click', async () => {
+            await fetchExistingTags();
+            // 保存・検索両方の既存タグ表示を更新
+            renderExistingTagsFor(TAG_PRESET_CONTEXTS.save);
+            renderExistingTagsFor(TAG_PRESET_CONTEXTS.search);
+        });
+        document.getElementById('search-reload-existing-tags-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('search-reload-existing-tags-btn');
+            btn.textContent = '取得中...';
+            await fetchExistingTags();
+            btn.textContent = '🔄 取得';
+            renderExistingTagsFor(TAG_PRESET_CONTEXTS.search);
+            renderExistingTagsFor(TAG_PRESET_CONTEXTS.save);
+        });
         // テキストを手動で編集してもチップの選択状態を同期
         document.getElementById('cloud-tags-input').addEventListener('input', renderTagPresets);
+        document.getElementById('explore-search-input').addEventListener('input', () => renderTagPresetsFor(TAG_PRESET_CONTEXTS.search));
 
         document.getElementById('cloud-save-confirm-btn').addEventListener('click', async () => {
             const title = document.getElementById('cloud-title-input').value.trim();
@@ -804,8 +866,8 @@
         document.getElementById('explore-execute-btn').addEventListener('click', async () => {
             const btn = document.getElementById('explore-execute-btn');
             const list = document.getElementById('explore-results-list');
-            const keyword = document.getElementById('explore-search-input').value.trim().toLowerCase();
-            
+            const rawQuery = document.getElementById('explore-search-input').value.trim();
+
             btn.textContent = '検索中...';
             list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">読み込み中...</p>';
 
@@ -828,33 +890,48 @@
                 return;
             }
 
-            // JavaScript側でキーワードによる絞り込み（タイトル、タグ、中の技名）
+            // クエリをトークンに分割：#始まりはタグトークン、それ以外は通常キーワード
+            const tokens = rawQuery.split(/\s+/).filter(t => t.length > 0);
+            const tagTokens = tokens.filter(t => t.startsWith('#')).map(t => t.toLowerCase());
+            const wordTokens = tokens.filter(t => !t.startsWith('#')).map(t => t.toLowerCase());
+
+            // AND検索：すべてのトークンがヒットしたものだけ表示
             const filteredData = data.filter(item => {
-                if (!keyword) return true; // キーワードが空なら全て表示
-                
-                if (item.title && item.title.toLowerCase().includes(keyword)) return true;
-                if (item.tags && item.tags.toLowerCase().includes(keyword)) return true;
-                
-                // 図の中の技名（ノード名）を検索
-                if (item.graph_data && item.graph_data.elements && item.graph_data.elements.nodes) {
-                    const nodes = item.graph_data.elements.nodes;
-                    const foundInNodes = nodes.some(n => n.data && n.data.rawName && n.data.rawName.toLowerCase().includes(keyword));
-                    if (foundInNodes) return true;
-                }
-                
-                // 図の中の遷移名を検索
-                if (item.graph_data && item.graph_data.elements && item.graph_data.elements.edges) {
-                    const edges = item.graph_data.elements.edges;
-                    const foundInEdges = edges.some(e => {
-                        if (e.data && e.data.transitions) {
-                            return e.data.transitions.some(t => t.name && t.name.toLowerCase().includes(keyword));
-                        }
-                        return false;
-                    });
-                    if (foundInEdges) return true;
+                if (tokens.length === 0) return true; // キーワードが空なら全て表示
+
+                // タグトークンは「item.tags」をトークン集合化して完全一致でANDマッチ
+                if (tagTokens.length > 0) {
+                    const itemTagSet = new Set(
+                        (item.tags || '')
+                            .toLowerCase()
+                            .split(/\s+/)
+                            .map(t => t.startsWith('#') ? t : (t ? '#' + t : t))
+                            .filter(t => t.length > 1)
+                    );
+                    const allTagsMatched = tagTokens.every(tag => itemTagSet.has(tag));
+                    if (!allTagsMatched) return false;
                 }
 
-                return false;
+                // 通常キーワード：タイトル・タグ・ノード名・遷移名のどれかに含まれていること（トークン間はAND）
+                for (const w of wordTokens) {
+                    let hit = false;
+                    if (item.title && item.title.toLowerCase().includes(w)) hit = true;
+                    if (!hit && item.tags && item.tags.toLowerCase().includes(w)) hit = true;
+                    if (!hit && item.graph_data && item.graph_data.elements && item.graph_data.elements.nodes) {
+                        hit = item.graph_data.elements.nodes.some(n => n.data && n.data.rawName && n.data.rawName.toLowerCase().includes(w));
+                    }
+                    if (!hit && item.graph_data && item.graph_data.elements && item.graph_data.elements.edges) {
+                        hit = item.graph_data.elements.edges.some(e => {
+                            if (e.data && e.data.transitions) {
+                                return e.data.transitions.some(t => t.name && t.name.toLowerCase().includes(w));
+                            }
+                            return false;
+                        });
+                    }
+                    if (!hit) return false;
+                }
+
+                return true;
             });
 
             if (filteredData.length === 0) {
@@ -1244,6 +1321,7 @@
 
         toolbarPalette.init(); modalPalette.init(); filterPalette.init(); filterPalette.setSelectedColors([]); normalizeGraphData(); updateGroupLegend();
     </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

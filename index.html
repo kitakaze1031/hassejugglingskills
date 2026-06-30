@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ハッセ図エディタ（複数色・グループ対応版）</title>
+    <title>ハッセ図エディタ（複数色・統合グラデーション版）</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -35,14 +35,8 @@
             align-items: center;
         }
 
-        #toolbar::-webkit-scrollbar {
-            height: 4px;
-        }
-
-        #toolbar::-webkit-scrollbar-thumb {
-            background: #7f8c8d;
-            border-radius: 4px;
-        }
+        #toolbar::-webkit-scrollbar { height: 4px; }
+        #toolbar::-webkit-scrollbar-thumb { background: #7f8c8d; border-radius: 4px; }
 
         button, select {
             flex-shrink: 0;
@@ -58,34 +52,12 @@
             touch-action: manipulation;
         }
 
-        button.active {
-            background-color: #3498db;
-            box-shadow: 0 0 8px #3498db;
-        }
-
-        button.active-delete {
-            background-color: #e74c3c;
-            box-shadow: 0 0 8px #e74c3c;
-        }
-
-        button.active-prereq {
-            background-color: #e67e22;
-            box-shadow: 0 0 8px #e67e22;
-        }
-
-        button.active-trans {
-            background-color: #2ecc71;
-            box-shadow: 0 0 8px #2ecc71;
-        }
-
-        .btn-io {
-            background-color: #8e44ad;
-        }
-
-        .btn-auth {
-            background-color: #f39c12;
-            color: white;
-        }
+        button.active { background-color: #3498db; box-shadow: 0 0 8px #3498db; }
+        button.active-delete { background-color: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
+        button.active-prereq { background-color: #e67e22; box-shadow: 0 0 8px #e67e22; }
+        button.active-trans { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+        .btn-io { background-color: #8e44ad; }
+        .btn-auth { background-color: #f39c12; color: white; }
 
         #user-info {
             color: white;
@@ -102,11 +74,6 @@
             padding: 6px 8px;
             flex-shrink: 0;
             gap: 12px;
-        }
-
-        .add-group button {
-            background-color: transparent;
-            padding: 8px 4px;
         }
 
         .color-palette-container {
@@ -134,14 +101,8 @@
             transition: transform 0.1s;
         }
 
-        .color-swatch:active {
-            transform: scale(0.85);
-        }
-
-        .color-swatch.selected {
-            border: 2px solid #fff;
-            box-shadow: 0 0 0 2px #3498db;
-        }
+        .color-swatch:active { transform: scale(0.85); }
+        .color-swatch.selected { border: 2px solid #fff; box-shadow: 0 0 0 2px #3498db; }
 
         input[type="color"] {
             width: 32px;
@@ -154,9 +115,7 @@
             flex-shrink: 0;
         }
 
-        input[type="text"],
-        input[type="url"],
-        textarea, select {
+        input[type="text"], input[type="url"], textarea, select {
             width: 100%;
             box-sizing: border-box;
             border: 1px solid #cfd8dc;
@@ -165,10 +124,7 @@
             font-size: 14px;
         }
 
-        textarea {
-            min-height: 90px;
-            resize: vertical;
-        }
+        textarea { min-height: 90px; resize: vertical; }
 
         #group-name-input {
             width: 150px;
@@ -183,10 +139,7 @@
             min-height: 0;
         }
 
-        #cy {
-            width: 100%;
-            height: 100%;
-        }
+        #cy { width: 100%; height: 100%; }
 
         #group-legend {
             position: absolute;
@@ -203,24 +156,21 @@
             color: #2c3e50;
         }
 
-        #group-legend h4 {
-            margin: 0 0 8px 0;
-            font-size: 13px;
-        }
-
-        #group-legend-list {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
+        #group-legend h4 { margin: 0 0 8px 0; font-size: 13px; }
+        #group-legend-list { display: flex; flex-direction: column; gap: 2px; }
 
         .legend-item {
             display: flex;
             align-items: center;
             gap: 8px;
             line-height: 1.3;
+            padding: 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
         }
 
+        .legend-item:hover { background-color: rgba(0, 0, 0, 0.08); }
         .legend-swatch {
             width: 14px;
             height: 14px;
@@ -228,18 +178,12 @@
             border: 1px solid rgba(0, 0, 0, 0.15);
             flex-shrink: 0;
         }
-
-        .legend-empty {
-            color: #7f8c8d;
-        }
+        .legend-empty { color: #7f8c8d; padding: 4px; }
 
         #modal-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.6);
             z-index: 999;
         }
@@ -247,8 +191,7 @@
         .floating-modal {
             display: none;
             position: fixed;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             background: white;
             padding: 20px;
@@ -259,62 +202,20 @@
             z-index: 1000;
         }
 
-        .floating-modal h3 {
-            margin: 0 0 15px 0;
-            font-size: 16px;
-            color: #333;
-            text-align: center;
-        }
-
-        .modal-field {
-            margin-bottom: 12px;
-        }
-
-        .modal-field label {
-            display: block;
-            font-size: 12px;
-            color: #555;
-            margin-bottom: 6px;
-            font-weight: bold;
-        }
-
+        .floating-modal h3 { margin: 0 0 15px 0; font-size: 16px; color: #333; text-align: center; }
+        .modal-field { margin-bottom: 12px; }
+        .modal-field label { display: block; font-size: 12px; color: #555; margin-bottom: 6px; font-weight: bold; }
+        
         .modal-btn {
-            display: block;
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 10px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            text-decoration: none;
-            text-align: center;
-            box-sizing: border-box;
-            cursor: pointer;
+            display: block; width: 100%; padding: 12px; margin-bottom: 10px;
+            background-color: #3498db; color: white; border: none; border-radius: 8px;
+            font-size: 14px; text-decoration: none; text-align: center; box-sizing: border-box; cursor: pointer;
         }
 
-        .modal-btn.disabled {
-            background-color: #bdc3c7;
-            pointer-events: none;
-        }
-
-        .modal-btn.secondary {
-            background-color: #16a085;
-        }
-
-        .close-btn {
-            background-color: #e74c3c;
-            margin-top: 15px;
-            margin-bottom: 0;
-        }
-
-        .hint-text {
-            margin: 4px 0 0 0;
-            font-size: 11px;
-            color: #607d8b;
-            line-height: 1.4;
-        }
+        .modal-btn.disabled { background-color: #bdc3c7; pointer-events: none; }
+        .modal-btn.secondary { background-color: #16a085; }
+        .close-btn { background-color: #e74c3c; margin-top: 15px; margin-bottom: 0; }
+        .hint-text { margin: 4px 0 0 0; font-size: 11px; color: #607d8b; line-height: 1.4; }
     </style>
 </head>
 
@@ -327,14 +228,14 @@
                 <input type="color" id="node-color" value="#3498db" title="カスタムカラーを選択">
             </div>
             <div>
-                <input type="text" id="group-name-input" placeholder="グループ名（選択した色）">
+                <input type="text" id="group-name-input" placeholder="グループ名（選択色）">
                 <p class="hint-text" style="color: #bdc3c7; margin: 2px 0 0 2px;">※色は複数タップして選べます</p>
             </div>
             <button id="add-node-btn">➕ 技を追加</button>
         </div>
         <button id="mode-prereq-btn">↙️ 前提線を引く</button>
         <button id="mode-trans-btn">🔄 遷移線を引く</button>
-        <button id="mode-delete-btn">🗑 タッチで消去</button>
+        <button id="mode-delete-btn">🗑 タッチ消去</button>
         <button id="undo-btn">↩️ 戻る</button>
         <button id="arrange-btn">✨ 整列</button>
         
@@ -352,7 +253,7 @@
     <div id="cy-wrap">
         <div id="cy"></div>
         <div id="group-legend">
-            <h4>グループ表示（色で分類）</h4>
+            <h4>グループ表示（タップで一覧）</h4>
             <div id="group-legend-list"></div>
         </div>
     </div>
@@ -391,6 +292,12 @@
         <button class="modal-btn close-btn" onclick="closeCloudLoadModal()">閉じる</button>
     </div>
 
+    <div id="group-list-modal" class="floating-modal" style="max-height: 80vh; overflow-y: auto; max-width: 420px; width: 92%;">
+        <h3 id="group-list-title">グループ一覧</h3>
+        <div id="group-list-content" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;"></div>
+        <button class="modal-btn close-btn" onclick="closeGroupListModal()">閉じる</button>
+    </div>
+
     <div id="node-editor" class="floating-modal">
         <h3>技を編集</h3>
         <div class="modal-field">
@@ -419,8 +326,9 @@
         <button class="modal-btn close-btn" onclick="closeNodeEditor()">閉じる</button>
     </div>
 
-    <div id="trans-editor" class="floating-modal" style="max-height: 85vh; overflow-y: auto; max-width: 400px; width: 90%;">
+    <div id="trans-editor" class="floating-modal" style="max-height: 85vh; overflow-y: auto; max-width: 420px; width: 92%;">
         <h3>遷移線を編集</h3>
+        <p style="font-size: 11px; color: #666; text-align: center; margin-bottom: 12px;">※色を複数つけると線の色がグラデーションになります</p>
         <div id="trans-inputs-container"></div>
         <button id="trans-save-btn" class="modal-btn" style="background-color: #2ecc71;">すべての変更を保存</button>
         <button class="modal-btn close-btn" onclick="closeTransEditor()">閉じる</button>
@@ -631,17 +539,17 @@
         }
 
         // ==========================================
-        // ハッセ図エディタのプログラム（複数色対応）
+        // カラーパレット管理プログラム
         // ==========================================
         const PRESET_COLORS = [
             '#e74c3c', '#e91e63', '#9b59b6', '#673ab7', '#3f51b5',
-            '#2196f3', '#03a9f4', '#00bcd4', '#1abc9c', '#2ecc71',
+            '#3498db', '#03a9f4', '#00bcd4', '#1abc9c', '#2ecc71',
             '#8bc34a', '#cddc39', '#f1c40f', '#ffc107', '#f39c12',
             '#e67e22', '#795548', '#95a5a6', '#34495e', '#000000'
         ];
 
         function normalizeColor(color) {
-            if (!color) return '#3498db';
+            if (!color) return '#95a5a6';
             let c = String(color).trim().toLowerCase();
             if (/^#[0-9a-f]{3}$/.test(c)) {
                 c = '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
@@ -649,14 +557,13 @@
             return c;
         }
 
-        // 複数色パレットをトグル管理するクラス
         class PaletteManager {
             constructor(containerId, inputColorId, inputTextId) {
                 this.container = document.getElementById(containerId);
-                this.inputColor = document.getElementById(inputColorId);
-                this.inputText = document.getElementById(inputTextId);
-                this.selectedColors = ['#3498db']; // 現在選択されている色の配列
-                this.activeColor = '#3498db';       // 最後にタップした色（テキスト入力同期用）
+                this.inputColor = inputColorId ? document.getElementById(inputColorId) : null;
+                this.inputText = inputTextId ? document.getElementById(inputTextId) : null;
+                this.selectedColors = ['#3498db'];
+                this.activeColor = '#3498db';
             }
 
             init() {
@@ -670,25 +577,27 @@
                     this.container.appendChild(swatch);
                 });
 
-                this.inputColor.addEventListener('input', (e) => {
-                    const color = normalizeColor(e.target.value);
-                    if (!this.selectedColors.includes(color)) {
-                        this.selectedColors.push(color);
-                    }
-                    this.activeColor = color;
-                    this.render();
-                    this.syncText();
-                });
+                if (this.inputColor) {
+                    this.inputColor.addEventListener('input', (e) => {
+                        const color = normalizeColor(e.target.value);
+                        if (!this.selectedColors.includes(color)) this.selectedColors.push(color);
+                        this.activeColor = color;
+                        this.render();
+                        this.syncText();
+                    });
+                }
 
-                this.inputText.addEventListener('input', (e) => {
-                    const newName = e.target.value.trim();
-                    const colorMap = cy.data('colorMap') || {};
-                    if (this.activeColor) {
-                        colorMap[this.activeColor] = newName;
-                        cy.data('colorMap', colorMap);
-                        updateGroupLegend();
-                    }
-                });
+                if (this.inputText) {
+                    this.inputText.addEventListener('input', (e) => {
+                        const newName = e.target.value.trim();
+                        const colorMap = cy.data('colorMap') || {};
+                        if (this.activeColor) {
+                            colorMap[this.activeColor] = newName;
+                            cy.data('colorMap', colorMap);
+                            updateGroupLegend();
+                        }
+                    });
+                }
 
                 this.render();
                 this.syncText();
@@ -697,15 +606,12 @@
             handleSwatchClick(color) {
                 color = normalizeColor(color);
                 const index = this.selectedColors.indexOf(color);
-
                 if (index > -1) {
-                    // 既に選択されていれば解除
                     this.selectedColors.splice(index, 1);
                     if (this.activeColor === color) {
                         this.activeColor = this.selectedColors.length > 0 ? this.selectedColors[this.selectedColors.length - 1] : null;
                     }
                 } else {
-                    // 選択されていなければ追加
                     this.selectedColors.push(color);
                     this.activeColor = color;
                 }
@@ -720,7 +626,7 @@
                         el.classList.add('selected');
                         if (c === this.activeColor) {
                             el.style.transform = 'scale(1.15)';
-                            el.style.boxShadow = '0 0 0 2px #fff, 0 0 0 4px #000'; // 最後に選んだアクティブ色は黒の二重枠
+                            el.style.boxShadow = '0 0 0 2px #fff, 0 0 0 4px #000';
                             el.style.zIndex = '2';
                         } else {
                             el.style.transform = '';
@@ -734,12 +640,13 @@
                         el.style.zIndex = '';
                     }
                 });
-                if (this.activeColor) {
+                if (this.activeColor && this.inputColor) {
                     this.inputColor.value = this.activeColor;
                 }
             }
 
             syncText() {
+                if (!this.inputText) return;
                 if (this.activeColor) {
                     const colorMap = cy.data('colorMap') || {};
                     this.inputText.value = colorMap[this.activeColor] || '';
@@ -754,7 +661,7 @@
 
             setSelectedColors(colors) {
                 this.selectedColors = colors.map(normalizeColor);
-                this.activeColor = this.selectedColors.length > 0 ? this.selectedColors[0] : null;
+                this.activeColor = this.selectedColors.length > 0 ? this.selectedColors[this.selectedColors.length - 1] : null;
                 this.render();
                 this.syncText();
             }
@@ -769,6 +676,7 @@
         let sourceNode = null;
         let editingNode = null;
         let editingEdge = null;
+        let activeTransPalettes = []; 
 
         function pushUndo(action, data) {
             undoStack.push({ action, data });
@@ -809,23 +717,21 @@
                     selector: 'edge[edgeType="trans"]',
                     style: {
                         'width': 4,
-                        'line-color': '#2ecc71',
-                        'target-arrow-color': '#2ecc71',
+                        'line-color': '#95a5a6',
+                        'target-arrow-color': '#95a5a6',
                         'target-arrow-shape': 'vee',
                         'line-style': 'dashed',
-                        'curve-style': 'unbundled-bezier',
-                        'control-point-distances': [60],
-                        'control-point-weights': [0.5],
+                        'curve-style': 'bezier',
                         'label': 'data(label)',
                         'text-wrap': 'wrap',
                         'font-size': '12px',
-                        'color': '#27ae60',
+                        'color': '#2c3e50',
                         'text-background-opacity': 1,
                         'text-background-color': '#ffffff',
                         'text-background-padding': '4px',
                         'text-background-shape': 'roundrectangle',
                         'text-border-opacity': 1,
-                        'text-border-color': '#2ecc71',
+                        'text-border-color': '#bdc3c7',
                         'text-border-width': 1,
                         'text-events': 'yes',
                         'z-index': 10,
@@ -856,28 +762,17 @@
             ]
         });
 
-        // 複数色を円グラフ状に塗り分けるスタイル適用関数
+        // ノードの円グラフ塗り分け
         function applyNodePieStyle(node) {
             let colors = node.data('colors') || [];
-            if (colors.length === 0 && node.data('color')) {
-                colors = [node.data('color')];
-            }
-            if (colors.length === 0) {
-                colors = ['#95a5a6']; // 選択がない場合はグレー
-            }
+            if (colors.length === 0 && node.data('color')) colors = [node.data('color')];
+            if (colors.length === 0) colors = ['#95a5a6'];
 
             if (colors.length === 1) {
-                node.style({
-                    'background-color': colors[0],
-                    'pie-size': '0%' // 円グラフをオフ
-                });
+                node.style({ 'background-color': colors[0], 'pie-size': '0%' });
             } else {
-                let styleObj = {
-                    'background-color': '#95a5a6',
-                    'pie-size': '100%' // 円グラフをオン
-                };
+                let styleObj = { 'background-color': '#95a5a6', 'pie-size': '100%' };
                 const percent = 100 / colors.length;
-                // Cytoscapeは最大16分割までパイチャートをサポート
                 for (let i = 1; i <= 16; i++) {
                     if (i <= colors.length) {
                         styleObj[`pie-${i}-background-color`] = colors[i - 1];
@@ -887,6 +782,37 @@
                     }
                 }
                 node.style(styleObj);
+            }
+        }
+
+        // 遷移線のグラデーション塗り分け
+        function applyEdgeGradientStyle(edge) {
+            const transitions = edge.data('transitions') || [];
+            let allColors = [];
+            transitions.forEach(t => {
+                if (t.colors) {
+                    t.colors.forEach(c => {
+                        if (!allColors.includes(c)) allColors.push(c);
+                    });
+                }
+            });
+            if (allColors.length === 0) allColors = ['#95a5a6'];
+
+            if (allColors.length === 1) {
+                edge.style({
+                    'line-fill': 'solid',
+                    'line-color': allColors[0],
+                    'target-arrow-color': allColors[0]
+                });
+            } else {
+                const step = 100 / (allColors.length - 1);
+                const positions = allColors.map((c, i) => (i * step) + '%');
+                edge.style({
+                    'line-fill': 'linear-gradient',
+                    'line-gradient-stop-colors': allColors.join(' '),
+                    'line-gradient-stop-positions': positions.join(' '),
+                    'target-arrow-color': allColors[allColors.length - 1]
+                });
             }
         }
 
@@ -902,8 +828,8 @@
         const modalContent = document.getElementById('modal-content');
         const nodeEditor = document.getElementById('node-editor');
         const transEditor = document.getElementById('trans-editor');
+        const groupListModal = document.getElementById('group-list-modal');
 
-        // パレット管理インスタンスの作成
         const toolbarPalette = new PaletteManager('toolbar-color-palette', 'node-color', 'group-name-input');
         const modalPalette = new PaletteManager('modal-color-palette', 'node-color-input', 'node-group-input');
 
@@ -918,14 +844,10 @@
             if (mode === 'delete') btns.delete.classList.add('active-delete');
         }
 
-        function openOverlay() {
-            modalOverlay.style.display = 'block';
-        }
-
+        function openOverlay() { modalOverlay.style.display = 'block'; }
         function closeOverlayIfUnused() {
             const anyOpen = [
-                linkModal, nodeEditor, transEditor, cloudLoadModal, 
-                document.getElementById('cloud-save-modal')
+                linkModal, nodeEditor, transEditor, cloudLoadModal, groupListModal, document.getElementById('cloud-save-modal')
             ].some(el => el.style.display === 'block');
             if (!anyOpen) modalOverlay.style.display = 'none';
         }
@@ -942,7 +864,6 @@
             return transitions.map((t, i) => `${i + 1}. ${t.name || ''}`).join('\n');
         }
 
-        // 古いデータとの互換性・ノーマライズ
         function normalizeGraphData() {
             let colorMap = cy.data('colorMap') || {};
             let mapUpdated = false;
@@ -950,100 +871,208 @@
             cy.nodes().forEach(node => {
                 let colors = node.data('colors');
                 if (!colors || !Array.isArray(colors)) {
-                    let oldColor = normalizeColor(node.data('color') || '#3498db');
-                    colors = [oldColor];
+                    colors = [normalizeColor(node.data('color') || '#3498db')];
                     node.data('colors', colors);
                 }
 
-                // 過去の単一のgroupNameがあれば全体マップへ統合
                 let oldGroupName = (node.data('groupName') || '').trim();
                 if (oldGroupName && colors.length > 0) {
-                    if (!colorMap[colors[0]]) {
-                        colorMap[colors[0]] = oldGroupName;
-                        mapUpdated = true;
-                    }
+                    if (!colorMap[colors[0]]) { colorMap[colors[0]] = oldGroupName; mapUpdated = true; }
                 }
 
                 if (!node.data('rawName')) {
                     const oldLabel = node.data('label') || '';
                     node.data('rawName', oldLabel.replace(/\n?🔗/g, ''));
                 }
-
                 updateNodeDisplay(node);
                 applyNodePieStyle(node);
             });
 
-            if (mapUpdated || !cy.data('colorMap')) {
-                cy.data('colorMap', colorMap);
-            }
+            if (mapUpdated || !cy.data('colorMap')) cy.data('colorMap', colorMap);
 
+            const edgesToMerge = {};
+            const edgesToRemove = [];
+            
             cy.edges('[edgeType="trans"]').forEach(edge => {
-                const transitions = edge.data('transitions') || (edge.data('label') ? [{ name: edge.data('label'), url: '' }] : []);
-                edge.data({
-                    transitions: transitions,
-                    label: buildTransitionLabel(transitions),
-                    hasTransUrl: transitions.some(t => t.url)
+                let transitions = edge.data('transitions');
+                if (!transitions || transitions.length === 0) {
+                    const cleanName = (edge.data('rawName') || edge.data('label') || '').replace(/ 🎥/g, '').trim();
+                    const edgeColor = edge.data('color') ? normalizeColor(edge.data('color')) : '#95a5a6';
+                    if (cleanName !== '') transitions = [{ name: cleanName, url: edge.data('url') || '', colors: [edgeColor] }];
+                    else transitions = [];
+                }
+
+                if (transitions.length > 0) {
+                    const key = `${edge.source().id()}->${edge.target().id()}`;
+                    if (!edgesToMerge[key]) {
+                        edgesToMerge[key] = { edge: edge, transitions: [...transitions] };
+                    } else {
+                        edgesToMerge[key].transitions.push(...transitions);
+                        edgesToRemove.push(edge);
+                    }
+                } else {
+                    edgesToRemove.push(edge);
+                }
+            });
+
+            edgesToRemove.forEach(e => e.remove());
+
+            Object.values(edgesToMerge).forEach(item => {
+                item.transitions.forEach(t => { if (!t.colors || t.colors.length === 0) t.colors = ['#95a5a6']; });
+                item.edge.data({
+                    transitions: item.transitions,
+                    label: buildTransitionLabel(item.transitions),
+                    hasTransUrl: item.transitions.some(t => t.url)
                 });
+                applyEdgeGradientStyle(item.edge); 
             });
         }
+
+        // グループごとの技一覧をモーダルで表示する
+        function showGroupListModal(color) {
+            const colorMap = cy.data('colorMap') || {};
+            const groupName = colorMap[color] || '名前なし';
+            document.getElementById('group-list-title').textContent = `${groupName} の一覧`;
+            
+            const content = document.getElementById('group-list-content');
+            content.innerHTML = '';
+            let hasItems = false;
+            
+            // 技(ノード)を追加
+            cy.nodes().forEach(node => {
+                const colors = node.data('colors') || [];
+                if (colors.includes(color)) {
+                    hasItems = true;
+                    const rawName = node.data('rawName') || '無名';
+                    const url = node.data('url') || '';
+                    
+                    const item = document.createElement('div');
+                    item.style.padding = '10px';
+                    item.style.borderBottom = '1px solid #ecf0f1';
+                    item.style.display = 'flex';
+                    item.style.justifyContent = 'space-between';
+                    item.style.alignItems = 'center';
+                    item.innerHTML = `<span style="font-size:14px; font-weight:bold; color:#2c3e50;">【技】 ${rawName}</span>`;
+
+                    if (url) {
+                        const btn = document.createElement('a');
+                        btn.href = url; btn.target = '_blank'; btn.className = 'modal-btn';
+                        btn.style.margin = '0'; btn.style.width = 'auto'; btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; btn.style.textDecoration = 'none';
+                        btn.textContent = '🎥 動画を見る';
+                        item.appendChild(btn);
+                    }
+                    content.appendChild(item);
+                }
+            });
+
+            // 遷移線(エッジ)を追加
+            cy.edges('[edgeType="trans"]').forEach(edge => {
+                const transitions = edge.data('transitions') || [];
+                transitions.forEach(t => {
+                    if ((t.colors || []).includes(color)) {
+                        hasItems = true;
+                        const tName = t.name || '無名遷移';
+                        const url = t.url || '';
+                        
+                        const item = document.createElement('div');
+                        item.style.padding = '10px';
+                        item.style.borderBottom = '1px solid #ecf0f1';
+                        item.style.display = 'flex';
+                        item.style.justifyContent = 'space-between';
+                        item.style.alignItems = 'center';
+                        item.innerHTML = `<span style="font-size:14px; font-weight:bold; color:#2c3e50;">【遷移】 ${tName}</span>`;
+
+                        if (url) {
+                            const btn = document.createElement('a');
+                            btn.href = url; btn.target = '_blank'; btn.className = 'modal-btn';
+                            btn.style.margin = '0'; btn.style.width = 'auto'; btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; btn.style.textDecoration = 'none';
+                            btn.textContent = '🎥 動画を見る';
+                            item.appendChild(btn);
+                        }
+                        content.appendChild(item);
+                    }
+                });
+            });
+
+            if (!hasItems) {
+                content.innerHTML = '<div style="text-align:center; color:#7f8c8d; font-size:13px; padding:10px;">このグループに属する項目はありません</div>';
+            }
+
+            openOverlay();
+            groupListModal.style.display = 'block';
+        }
+
+        function closeGroupListModal() { groupListModal.style.display = 'none'; closeOverlayIfUnused(); }
 
         function updateGroupLegend() {
             const list = document.getElementById('group-legend-list');
             const colorMap = cy.data('colorMap') || {};
             const usedColors = new Map();
 
+            // ノードの色を集計
             cy.nodes().forEach(node => {
                 let colors = node.data('colors') || [];
-                colors.forEach(c => {
-                    usedColors.set(c, (usedColors.get(c) || 0) + 1);
+                colors.forEach(c => usedColors.set(c, (usedColors.get(c) || 0) + 1));
+            });
+
+            // エッジの色を集計
+            cy.edges('[edgeType="trans"]').forEach(edge => {
+                let transitions = edge.data('transitions') || [];
+                transitions.forEach(t => {
+                    let colors = t.colors || [];
+                    colors.forEach(c => usedColors.set(c, (usedColors.get(c) || 0) + 1));
                 });
             });
 
             if (usedColors.size === 0) {
-                list.innerHTML = '<div class="legend-empty">技を追加すると色ごとのグループが表示されます。</div>';
+                list.innerHTML = '<div class="legend-empty">技や遷移線を追加すると色ごとのグループが表示されます。</div>';
                 return;
             }
 
             list.innerHTML = '';
-            Array.from(usedColors.entries())
-                .sort((a, b) => b[1] - a[1])
-                .forEach(([color, count]) => {
-                    const item = document.createElement('div');
-                    item.className = 'legend-item';
-                    const displayName = colorMap[color] || '(名前なし)';
-                    item.innerHTML = `<span class="legend-swatch" style="background:${color}"></span><span>${displayName} (${count})</span>`;
-                    list.appendChild(item);
-                });
+            Array.from(usedColors.entries()).sort((a, b) => b[1] - a[1]).forEach(([color, count]) => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                const displayName = colorMap[color] || '(名前なし)';
+                item.innerHTML = `<span class="legend-swatch" style="background:${color}"></span><span style="font-size:13px; font-weight:bold; color:#34495e;">${displayName} (${count})</span>`;
+                item.addEventListener('click', () => showGroupListModal(color));
+                list.appendChild(item);
+            });
         }
 
-        function closeModal() {
-            linkModal.style.display = 'none';
-            closeOverlayIfUnused();
-        }
-
-        function closeNodeEditor() {
-            nodeEditor.style.display = 'none';
-            editingNode = null;
-            closeOverlayIfUnused();
-        }
-
-        function closeTransEditor() {
-            transEditor.style.display = 'none';
-            editingEdge = null;
-            closeOverlayIfUnused();
-        }
+        function closeModal() { linkModal.style.display = 'none'; closeOverlayIfUnused(); }
+        function closeNodeEditor() { nodeEditor.style.display = 'none'; editingNode = null; closeOverlayIfUnused(); }
+        function closeTransEditor() { transEditor.style.display = 'none'; editingEdge = null; closeOverlayIfUnused(); }
 
         function showModal(transitions) {
             modalContent.innerHTML = '';
             transitions.forEach(t => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.alignItems = 'center';
+                row.style.gap = '8px';
+                row.style.marginBottom = '8px';
+
+                const colorContainer = document.createElement('div');
+                colorContainer.style.display = 'flex';
+                colorContainer.style.gap = '4px';
+                const colors = t.colors && t.colors.length > 0 ? t.colors : ['#95a5a6'];
+                colors.forEach(c => {
+                    const swatch = document.createElement('div');
+                    swatch.style.width = '14px'; swatch.style.height = '14px'; swatch.style.borderRadius = '50%';
+                    swatch.style.backgroundColor = c; swatch.style.border = '1px solid rgba(0,0,0,0.2)'; swatch.style.flexShrink = '0';
+                    colorContainer.appendChild(swatch);
+                });
+
                 const btn = document.createElement('a');
                 btn.className = 'modal-btn' + (t.url ? '' : ' disabled');
-                btn.textContent = t.name + (t.url ? ' 🎥' : ' (動画なし)');
-                if (t.url) {
-                    btn.href = t.url;
-                    btn.target = '_blank';
-                }
-                modalContent.appendChild(btn);
+                btn.textContent = t.name + (t.url ? ' 🎥' : '');
+                btn.style.flex = '1'; btn.style.margin = '0';
+                if (t.url) { btn.href = t.url; btn.target = '_blank'; }
+                
+                row.appendChild(colorContainer);
+                row.appendChild(btn);
+                modalContent.appendChild(row);
             });
             openOverlay();
             linkModal.style.display = 'block';
@@ -1053,10 +1082,8 @@
             editingNode = node;
             document.getElementById('node-name-input').value = node.data('rawName') || '';
             document.getElementById('node-url-input').value = node.data('url') || '';
-            
             let colors = node.data('colors') || [];
             modalPalette.setSelectedColors(colors);
-
             openOverlay();
             nodeEditor.style.display = 'block';
         }
@@ -1066,6 +1093,7 @@
             const transitions = edge.data('transitions') || [];
             const container = document.getElementById('trans-inputs-container');
             container.innerHTML = '';
+            activeTransPalettes = [];
 
             transitions.forEach((t, i) => {
                 const box = document.createElement('div');
@@ -1077,19 +1105,35 @@
 
                 box.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <span style="font-size:12px; font-weight:bold; color:#2ecc71;">技の遷移 #${i + 1}</span>
+                        <span style="font-size:12px; font-weight:bold; color:#2c3e50;">技の遷移 #${i + 1}</span>
                         ${transitions.length > 1 ? `<button type="button" class="del-trans-btn" data-index="${i}" style="background-color:#e74c3c; padding:4px 8px; font-size:11px;">削除</button>` : ''}
                     </div>
                     <div class="modal-field">
                         <label style="font-size:11px; margin-bottom:2px; color:#555;">遷移名</label>
                         <input type="text" class="trans-name-field" value="${t.name || ''}" placeholder="遷移名を入力" style="padding:6px; font-size:13px;">
                     </div>
-                    <div class="modal-field" style="margin-bottom:0;">
+                    <div class="modal-field">
                         <label style="font-size:11px; margin-bottom:2px; color:#555;">動画URL</label>
                         <input type="url" class="trans-url-field" value="${t.url || ''}" placeholder="https://..." style="padding:6px; font-size:13px;">
                     </div>
+                    <div class="modal-field" style="margin-bottom:0;">
+                        <label style="font-size:11px; margin-bottom:2px; color:#555;">色分け（複数タップ可）</label>
+                        <div class="color-palette-container" style="background: transparent; padding: 0; justify-content: flex-start; margin-bottom: 8px;">
+                            <div id="trans-palette-${i}" class="color-palette" style="grid-template-columns: repeat(10, 22px); gap: 4px;"></div>
+                        </div>
+                    </div>
+                    <div class="modal-field">
+                        <label style="font-size:11px; margin-bottom:2px; color:#555;">グループ名（最後にタップした選択色名）</label>
+                        <input type="text" id="trans-group-input-${i}" placeholder="グループ名を入力" style="padding:6px; font-size:13px;">
+                    </div>
                 `;
                 container.appendChild(box);
+
+                // PaletteManager が持つ連動機能に完全に任せることでバグを防ぎます
+                const pm = new PaletteManager(`trans-palette-${i}`, null, `trans-group-input-${i}`);
+                pm.init();
+                pm.setSelectedColors(t.colors && t.colors.length > 0 ? t.colors : ['#95a5a6']);
+                activeTransPalettes.push(pm);
             });
 
             container.querySelectorAll('.del-trans-btn').forEach(btn => {
@@ -1112,16 +1156,10 @@
             const newName = document.getElementById('node-name-input').value.trim();
             if (!newName) return alert('技名を入力してください。');
             const newUrl = document.getElementById('node-url-input').value.trim();
-            
             const newColors = modalPalette.getSelectedColors();
+            const colorsToSave = newColors.length > 0 ? newColors : ['#95a5a6'];
             
-            editingNode.data({ 
-                rawName: newName, 
-                url: newUrl, 
-                colors: newColors,
-                color: newColors[0] || '#3498db'
-            });
-
+            editingNode.data({ rawName: newName, url: newUrl, colors: colorsToSave, color: colorsToSave[0] });
             updateNodeDisplay(editingNode);
             applyNodePieStyle(editingNode);
             pushUndo('edit', { ele: editingNode, oldData: oldData });
@@ -1142,8 +1180,11 @@
             nameFields.forEach((field, idx) => {
                 const nameVal = field.value.trim();
                 const urlVal = urlFields[idx].value.trim();
+                const colorsVal = activeTransPalettes[idx].getSelectedColors();
+                const colorsToSave = colorsVal.length > 0 ? colorsVal : ['#95a5a6'];
+
                 if (!nameVal) isValid = false;
-                newTransitions.push({ name: nameVal, url: urlVal });
+                newTransitions.push({ name: nameVal, url: urlVal, colors: colorsToSave });
             });
 
             if (!isValid) return alert('遷移名が空欄の項目があります。');
@@ -1153,7 +1194,11 @@
                 label: buildTransitionLabel(newTransitions),
                 hasTransUrl: newTransitions.some(t => t.url)
             });
+            applyEdgeGradientStyle(editingEdge);
             pushUndo('edit', { ele: editingEdge, oldData: oldData });
+            
+            // 編集内容を保存してからレジェンドを更新することで、確実に追加した色が反映されます
+            updateGroupLegend();
             closeTransEditor();
         }
 
@@ -1170,19 +1215,13 @@
             if (!rawName) return;
             
             const selectedColors = toolbarPalette.getSelectedColors();
+            const colorsToSave = selectedColors.length > 0 ? selectedColors : ['#3498db'];
             const normalizedName = rawName.replace(/\\n/g, '\n');
             const newId = 'node_' + Date.now();
             
             const newNode = cy.add({
                 group: 'nodes',
-                data: { 
-                    id: newId, 
-                    label: normalizedName, 
-                    rawName: normalizedName, 
-                    url: '', 
-                    colors: selectedColors,
-                    color: selectedColors[0] || '#3498db'
-                },
+                data: { id: newId, label: normalizedName, rawName: normalizedName, url: '', colors: colorsToSave, color: colorsToSave[0] },
                 position: { x: cy.width() / 2, y: cy.height() / 2 }
             });
 
@@ -1216,16 +1255,13 @@
 
         function handleEdit(target) {
             if (target.isNode()) return openNodeEditor(target);
-            if (target.isEdge() && target.data('edgeType') === 'trans') openTransEditor(target);
+            if (target.isEdge() && target.data('edgeType') === 'trans') return openTransEditor(target);
         }
 
         function handleSingleTap(target) {
             if (target === cy) {
                 cy.nodes().removeClass('highlight-duplicate');
-                if (sourceNode) {
-                    sourceNode.removeClass('selected-source');
-                    sourceNode = null;
-                }
+                if (sourceNode) { sourceNode.removeClass('selected-source'); sourceNode = null; }
                 return;
             }
 
@@ -1242,9 +1278,7 @@
                     cy.nodes().removeClass('highlight-duplicate');
                     const nodeName = target.data('rawName');
                     if (nodeName) {
-                        cy.nodes().forEach(n => {
-                            if (n.data('rawName') === nodeName && n.id() !== target.id()) n.addClass('highlight-duplicate');
-                        });
+                        cy.nodes().forEach(n => { if (n.data('rawName') === nodeName && n.id() !== target.id()) n.addClass('highlight-duplicate'); });
                     }
                     const url = (target.data('url') || '').trim();
                     if (url !== '') window.open(url, '_blank');
@@ -1277,21 +1311,25 @@
                         const transName = prompt('遷移技の名前（入り方など）:');
                         if (transName) {
                             const transUrl = prompt('この遷移のYouTube URL (空でもOK):', '') || '';
+                            const selectedColors = toolbarPalette.getSelectedColors();
+                            const colorsToSave = selectedColors.length > 0 ? selectedColors : ['#95a5a6'];
                             const existing = cy.edges(`[source="${sourceNode.id()}"][target="${target.id()}"][edgeType="trans"]`);
 
                             if (existing.length > 0) {
                                 const edge = existing[0];
                                 const oldData = edge.json();
                                 const transitions = edge.data('transitions') || [];
-                                transitions.push({ name: transName, url: transUrl });
+                                transitions.push({ name: transName, url: transUrl, colors: colorsToSave });
                                 edge.data({
                                     transitions: transitions,
                                     label: buildTransitionLabel(transitions),
                                     hasTransUrl: transitions.some(t => t.url)
                                 });
+                                applyEdgeGradientStyle(edge);
                                 pushUndo('edit', { ele: edge, oldData: oldData });
+                                updateGroupLegend();
                             } else {
-                                const transitions = [{ name: transName, url: transUrl }];
+                                const transitions = [{ name: transName, url: transUrl, colors: colorsToSave }];
                                 const newEdge = cy.add({
                                     group: 'edges',
                                     data: {
@@ -1299,12 +1337,14 @@
                                         source: sourceNode.id(),
                                         target: target.id(),
                                         edgeType: 'trans',
-                                        label: transName,
+                                        label: buildTransitionLabel(transitions),
                                         transitions: transitions,
                                         hasTransUrl: !!transUrl
                                     }
                                 });
+                                applyEdgeGradientStyle(newEdge);
                                 pushUndo('add', newEdge.jsons());
+                                updateGroupLegend();
                             }
                         }
                     }
@@ -1320,21 +1360,22 @@
             closeTransEditor();
             closeCloudLoadModal();
             closeCloudSaveModal();
+            closeGroupListModal();
         });
 
         document.getElementById('undo-btn').addEventListener('click', () => {
             if (undoStack.length === 0) return alert('これ以上戻せません。');
             const lastAction = undoStack.pop();
             if (lastAction.action === 'add') {
-                lastAction.data.forEach(d => cy.getElementById(d.data.id).remove());
+                lastAction.data.forEach(d => { const ele = cy.getElementById(d.data.id); if (ele.length > 0) ele.remove(); });
             } else if (lastAction.action === 'remove') {
                 const restored = cy.add(lastAction.data);
                 restored.nodes().forEach(n => applyNodePieStyle(n));
+                restored.edges('[edgeType="trans"]').forEach(e => applyEdgeGradientStyle(e));
             } else if (lastAction.action === 'edit') {
                 lastAction.data.ele.data(lastAction.data.oldData.data);
-                if (lastAction.data.ele.isNode()) {
-                    applyNodePieStyle(lastAction.data.ele);
-                }
+                if (lastAction.data.ele.isNode()) applyNodePieStyle(lastAction.data.ele);
+                else if (lastAction.data.ele.isEdge() && lastAction.data.ele.data('edgeType') === 'trans') applyEdgeGradientStyle(lastAction.data.ele);
             }
             normalizeGraphData();
             updateGroupLegend();
@@ -1349,13 +1390,8 @@
             const jsonStr = JSON.stringify(data, null, 2);
             const blob = new Blob([jsonStr], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'juggling_hasse_data.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const a = document.createElement('a'); a.href = url; a.download = 'juggling_hasse_data.json';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
         });
 
         document.getElementById('file-input').addEventListener('change', (evt) => {
@@ -1369,15 +1405,12 @@
                     undoStack = [];
                     normalizeGraphData();
                     updateGroupLegend();
-                } catch (err) {
-                    alert('ファイルの読み込みに失敗しました。');
-                }
+                } catch (err) { alert('ファイルの読み込みに失敗しました。'); }
             };
             reader.readAsText(file);
             evt.target.value = '';
         });
 
-        // 起動時の初期化
         toolbarPalette.init();
         modalPalette.init();
         normalizeGraphData();

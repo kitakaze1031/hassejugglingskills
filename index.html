@@ -115,7 +115,7 @@
             flex-shrink: 0;
         }
 
-        input[type="text"], input[type="url"], textarea, select {
+        input[type="text"], input[type="url"], input[type="date"], textarea, select {
             width: 100%;
             box-sizing: border-box;
             border: 1px solid #cfd8dc;
@@ -236,6 +236,9 @@
         <button id="mode-prereq-btn">↙️ 前提線を引く</button>
         <button id="mode-trans-btn">🔄 遷移線を引く</button>
         <button id="mode-delete-btn">🗑 タッチ消去</button>
+        
+        <button id="filter-btn">🔍 検索</button>
+        
         <button id="undo-btn">↩️ 戻る</button>
         <button id="arrange-btn">✨ 整列</button>
         
@@ -264,6 +267,32 @@
         <h3>トランジション一覧</h3>
         <div id="modal-content"></div>
         <button class="modal-btn close-btn" onclick="closeModal()">閉じる</button>
+    </div>
+
+    <div id="filter-modal" class="floating-modal" style="max-height: 85vh; overflow-y: auto;">
+        <h3>絞り込み検索</h3>
+        <div class="modal-field">
+            <label for="filter-name">名前 (部分一致)</label>
+            <input type="text" id="filter-name" placeholder="技名・遷移名を入力">
+        </div>
+        <div class="modal-field">
+            <label>追加期間</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <input type="date" id="filter-date-start">
+                <span style="color:#555; font-size:12px;">〜</span>
+                <input type="date" id="filter-date-end">
+            </div>
+        </div>
+        <div class="modal-field">
+            <label>グループ（色）</label>
+            <p class="hint-text">選択した色のいずれかを含むものを表示します。<br>※未選択の場合は色で絞り込みません。</p>
+            <div class="color-palette-container" style="background: transparent; padding: 0; justify-content: center;">
+                <div id="filter-color-palette" class="color-palette" style="grid-template-columns: repeat(10, 22px); gap: 4px;"></div>
+            </div>
+        </div>
+        <button id="apply-filter-btn" class="modal-btn">絞り込む</button>
+        <button id="reset-filter-btn" class="modal-btn secondary">条件をリセット</button>
+        <button class="modal-btn close-btn" onclick="closeFilterModal()">閉じる</button>
     </div>
 
     <div id="cloud-save-modal" class="floating-modal">
@@ -335,6 +364,26 @@
     </div>
 
     <script>
+        // ==========================================
+        // 日時・タイムスタンプ処理のユーティリティ
+        // ==========================================
+        function getTimestamp(ele) {
+            if (ele.data('createdAt')) return ele.data('createdAt');
+            // 古いデータのためにIDからタイムスタンプを抽出（node_1234567890 形式）
+            const parts = ele.id().split('_');
+            if (parts.length > 1) {
+                const ts = parseInt(parts[1], 10);
+                if (!isNaN(ts) && ts > 1000000000000) return ts;
+            }
+            return 0; // フォールバック
+        }
+
+        function formatDate(ts) {
+            if (!ts) return '日時不明';
+            const d = new Date(ts);
+            return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        }
+
         // ==========================================
         // Supabase の初期化
         // ==========================================
@@ -677,6 +726,7 @@
         let editingNode = null;
         let editingEdge = null;
         let activeTransPalettes = []; 
+        let currentEditingTransitions = [];
 
         function pushUndo(action, data) {
             undoStack.push({ action, data });
@@ -758,6 +808,14 @@
                         'border-style': 'dashed',
                         'background-color': '#fff3cd'
                     }
+                },
+                {
+                    // 絞り込み用スタイル
+                    selector: '.filtered-out',
+                    style: {
+                        'opacity': 0.15,
+                        'events': 'no'
+                    }
                 }
             ]
         });
@@ -829,9 +887,11 @@
         const nodeEditor = document.getElementById('node-editor');
         const transEditor = document.getElementById('trans-editor');
         const groupListModal = document.getElementById('group-list-modal');
+        const filterModal = document.getElementById('filter-modal');
 
         const toolbarPalette = new PaletteManager('toolbar-color-palette', 'node-color', 'group-name-input');
         const modalPalette = new PaletteManager('modal-color-palette', 'node-color-input', 'node-group-input');
+        const filterPalette = new PaletteManager('filter-color-palette', null, null);
 
         function setMode(mode) {
             currentMode = mode;
@@ -847,7 +907,7 @@
         function openOverlay() { modalOverlay.style.display = 'block'; }
         function closeOverlayIfUnused() {
             const anyOpen = [
-                linkModal, nodeEditor, transEditor, cloudLoadModal, groupListModal, document.getElementById('cloud-save-modal')
+                linkModal, nodeEditor, transEditor, cloudLoadModal, groupListModal, document.getElementById('cloud-save-modal'), filterModal
             ].some(el => el.style.display === 'block');
             if (!anyOpen) modalOverlay.style.display = 'none';
         }
@@ -898,7 +958,7 @@
                 if (!transitions || transitions.length === 0) {
                     const cleanName = (edge.data('rawName') || edge.data('label') || '').replace(/ 🎥/g, '').trim();
                     const edgeColor = edge.data('color') ? normalizeColor(edge.data('color')) : '#95a5a6';
-                    if (cleanName !== '') transitions = [{ name: cleanName, url: edge.data('url') || '', colors: [edgeColor] }];
+                    if (cleanName !== '') transitions = [{ name: cleanName, url: edge.data('url') || '', colors: [edgeColor], createdAt: getTimestamp(edge) }];
                     else transitions = [];
                 }
 
@@ -928,7 +988,96 @@
             });
         }
 
-        // グループごとの技一覧をモーダルで表示する
+        // 絞り込み関連のロジック
+        document.getElementById('filter-btn').addEventListener('click', () => {
+            openOverlay();
+            filterModal.style.display = 'block';
+        });
+
+        function closeFilterModal() {
+            filterModal.style.display = 'none';
+            closeOverlayIfUnused();
+        }
+
+        document.getElementById('apply-filter-btn').addEventListener('click', () => {
+            const nameQ = document.getElementById('filter-name').value.trim().toLowerCase();
+            const startStr = document.getElementById('filter-date-start').value;
+            const endStr = document.getElementById('filter-date-end').value;
+            const selectedColors = filterPalette.getSelectedColors();
+
+            let startTs = 0;
+            let endTs = Number.MAX_SAFE_INTEGER;
+            
+            if (startStr) startTs = new Date(`${startStr}T00:00:00`).getTime();
+            if (endStr) endTs = new Date(`${endStr}T23:59:59`).getTime();
+
+            cy.batch(() => {
+                cy.elements().removeClass('filtered-out');
+
+                cy.nodes().forEach(node => {
+                    let match = true;
+                    const rawName = (node.data('rawName') || '').toLowerCase();
+                    const ts = getTimestamp(node);
+                    const colors = node.data('colors') || [];
+
+                    if (nameQ && !rawName.includes(nameQ)) match = false;
+                    if (ts < startTs || ts > endTs) match = false;
+                    if (selectedColors.length > 0) {
+                        const hasColor = colors.some(c => selectedColors.includes(c));
+                        if (!hasColor) match = false;
+                    }
+
+                    if (!match) node.addClass('filtered-out');
+                });
+
+                cy.edges().forEach(edge => {
+                    if (edge.data('edgeType') === 'prereq') {
+                        if (edge.source().hasClass('filtered-out') || edge.target().hasClass('filtered-out')) {
+                            edge.addClass('filtered-out');
+                        }
+                        return;
+                    }
+
+                    if (edge.data('edgeType') === 'trans') {
+                        const transitions = edge.data('transitions') || [];
+                        const ts = getTimestamp(edge);
+                        let edgeMatch = false;
+                        
+                        transitions.forEach(t => {
+                            let match = true;
+                            const tName = (t.name || '').toLowerCase();
+                            const tColors = t.colors || [];
+                            const tTs = t.createdAt || ts;
+
+                            if (nameQ && !tName.includes(nameQ)) match = false;
+                            if (tTs < startTs || tTs > endTs) match = false;
+                            if (selectedColors.length > 0) {
+                                const hasColor = tColors.some(c => selectedColors.includes(c));
+                                if (!hasColor) match = false;
+                            }
+                            if (match) edgeMatch = true;
+                        });
+
+                        if (!edgeMatch) edge.addClass('filtered-out');
+                    }
+                });
+            });
+
+            closeFilterModal();
+        });
+
+        document.getElementById('reset-filter-btn').addEventListener('click', () => {
+            document.getElementById('filter-name').value = '';
+            document.getElementById('filter-date-start').value = '';
+            document.getElementById('filter-date-end').value = '';
+            filterPalette.setSelectedColors([]);
+            
+            cy.elements().removeClass('filtered-out');
+            closeFilterModal();
+        });
+
+
+        // グループごとの技一覧をモーダルで表示する（日時順）
         function showGroupListModal(color) {
             const colorMap = cy.data('colorMap') || {};
             const groupName = colorMap[color] || '名前なし';
@@ -936,66 +1085,69 @@
             
             const content = document.getElementById('group-list-content');
             content.innerHTML = '';
-            let hasItems = false;
             
-            // 技(ノード)を追加
+            let items = [];
+            
+            // 技(ノード)を収集
             cy.nodes().forEach(node => {
                 const colors = node.data('colors') || [];
                 if (colors.includes(color)) {
-                    hasItems = true;
-                    const rawName = node.data('rawName') || '無名';
-                    const url = node.data('url') || '';
-                    
-                    const item = document.createElement('div');
-                    item.style.padding = '10px';
-                    item.style.borderBottom = '1px solid #ecf0f1';
-                    item.style.display = 'flex';
-                    item.style.justifyContent = 'space-between';
-                    item.style.alignItems = 'center';
-                    item.innerHTML = `<span style="font-size:14px; font-weight:bold; color:#2c3e50;">【技】 ${rawName}</span>`;
-
-                    if (url) {
-                        const btn = document.createElement('a');
-                        btn.href = url; btn.target = '_blank'; btn.className = 'modal-btn';
-                        btn.style.margin = '0'; btn.style.width = 'auto'; btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; btn.style.textDecoration = 'none';
-                        btn.textContent = '🎥 動画を見る';
-                        item.appendChild(btn);
-                    }
-                    content.appendChild(item);
+                    items.push({
+                        type: 'node',
+                        name: node.data('rawName') || '無名',
+                        url: node.data('url') || '',
+                        ts: getTimestamp(node)
+                    });
                 }
             });
 
-            // 遷移線(エッジ)を追加
+            // 遷移線(エッジ)を収集
             cy.edges('[edgeType="trans"]').forEach(edge => {
                 const transitions = edge.data('transitions') || [];
+                const edgeTs = getTimestamp(edge);
                 transitions.forEach(t => {
                     if ((t.colors || []).includes(color)) {
-                        hasItems = true;
-                        const tName = t.name || '無名遷移';
-                        const url = t.url || '';
-                        
-                        const item = document.createElement('div');
-                        item.style.padding = '10px';
-                        item.style.borderBottom = '1px solid #ecf0f1';
-                        item.style.display = 'flex';
-                        item.style.justifyContent = 'space-between';
-                        item.style.alignItems = 'center';
-                        item.innerHTML = `<span style="font-size:14px; font-weight:bold; color:#2c3e50;">【遷移】 ${tName}</span>`;
-
-                        if (url) {
-                            const btn = document.createElement('a');
-                            btn.href = url; btn.target = '_blank'; btn.className = 'modal-btn';
-                            btn.style.margin = '0'; btn.style.width = 'auto'; btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; btn.style.textDecoration = 'none';
-                            btn.textContent = '🎥 動画を見る';
-                            item.appendChild(btn);
-                        }
-                        content.appendChild(item);
+                        items.push({
+                            type: 'trans',
+                            name: t.name || '無名遷移',
+                            url: t.url || '',
+                            ts: t.createdAt || edgeTs
+                        });
                     }
                 });
             });
 
-            if (!hasItems) {
+            // 日時の古い順にソート
+            items.sort((a, b) => a.ts - b.ts);
+
+            if (items.length === 0) {
                 content.innerHTML = '<div style="text-align:center; color:#7f8c8d; font-size:13px; padding:10px;">このグループに属する項目はありません</div>';
+            } else {
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.style.padding = '10px';
+                    row.style.borderBottom = '1px solid #ecf0f1';
+                    row.style.display = 'flex';
+                    row.style.justifyContent = 'space-between';
+                    row.style.alignItems = 'center';
+                    
+                    const typeLabel = item.type === 'node' ? '【技】' : '【遷移】';
+                    const dateStr = formatDate(item.ts);
+
+                    row.innerHTML = `<div style="display:flex; flex-direction:column; gap:4px;">
+                        <span style="font-size:11px; color:#7f8c8d;">${dateStr}</span>
+                        <span style="font-size:14px; font-weight:bold; color:#2c3e50;">${typeLabel} ${item.name}</span>
+                    </div>`;
+
+                    if (item.url) {
+                        const btn = document.createElement('a');
+                        btn.href = item.url; btn.target = '_blank'; btn.className = 'modal-btn';
+                        btn.style.margin = '0'; btn.style.width = 'auto'; btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; btn.style.textDecoration = 'none';
+                        btn.textContent = '🎥 動画';
+                        row.appendChild(btn);
+                    }
+                    content.appendChild(row);
+                });
             }
 
             openOverlay();
@@ -1009,13 +1161,11 @@
             const colorMap = cy.data('colorMap') || {};
             const usedColors = new Map();
 
-            // ノードの色を集計
             cy.nodes().forEach(node => {
                 let colors = node.data('colors') || [];
                 colors.forEach(c => usedColors.set(c, (usedColors.get(c) || 0) + 1));
             });
 
-            // エッジの色を集計
             cy.edges('[edgeType="trans"]').forEach(edge => {
                 let transitions = edge.data('transitions') || [];
                 transitions.forEach(t => {
@@ -1091,6 +1241,9 @@
         function openTransEditor(edge) {
             editingEdge = edge;
             const transitions = edge.data('transitions') || [];
+            // 日時データを引き継ぐためにコピーを保持
+            currentEditingTransitions = JSON.parse(JSON.stringify(transitions));
+            
             const container = document.getElementById('trans-inputs-container');
             container.innerHTML = '';
             activeTransPalettes = [];
@@ -1129,7 +1282,6 @@
                 `;
                 container.appendChild(box);
 
-                // PaletteManager が持つ連動機能に完全に任せることでバグを防ぎます
                 const pm = new PaletteManager(`trans-palette-${i}`, null, `trans-group-input-${i}`);
                 pm.init();
                 pm.setSelectedColors(t.colors && t.colors.length > 0 ? t.colors : ['#95a5a6']);
@@ -1159,6 +1311,7 @@
             const newColors = modalPalette.getSelectedColors();
             const colorsToSave = newColors.length > 0 ? newColors : ['#95a5a6'];
             
+            // data にセットする際、既存の createdAt などは上書きされず維持されます
             editingNode.data({ rawName: newName, url: newUrl, colors: colorsToSave, color: colorsToSave[0] });
             updateNodeDisplay(editingNode);
             applyNodePieStyle(editingNode);
@@ -1182,9 +1335,11 @@
                 const urlVal = urlFields[idx].value.trim();
                 const colorsVal = activeTransPalettes[idx].getSelectedColors();
                 const colorsToSave = colorsVal.length > 0 ? colorsVal : ['#95a5a6'];
+                // 古い日時を引き継ぐ（なければ現在時刻）
+                const originalTs = currentEditingTransitions[idx] ? currentEditingTransitions[idx].createdAt : Date.now();
 
                 if (!nameVal) isValid = false;
-                newTransitions.push({ name: nameVal, url: urlVal, colors: colorsToSave });
+                newTransitions.push({ name: nameVal, url: urlVal, colors: colorsToSave, createdAt: originalTs });
             });
 
             if (!isValid) return alert('遷移名が空欄の項目があります。');
@@ -1197,7 +1352,6 @@
             applyEdgeGradientStyle(editingEdge);
             pushUndo('edit', { ele: editingEdge, oldData: oldData });
             
-            // 編集内容を保存してからレジェンドを更新することで、確実に追加した色が反映されます
             updateGroupLegend();
             closeTransEditor();
         }
@@ -1221,7 +1375,8 @@
             
             const newNode = cy.add({
                 group: 'nodes',
-                data: { id: newId, label: normalizedName, rawName: normalizedName, url: '', colors: colorsToSave, color: colorsToSave[0] },
+                // 追加日時の createdAt をセット
+                data: { id: newId, label: normalizedName, rawName: normalizedName, url: '', colors: colorsToSave, color: colorsToSave[0], createdAt: Date.now() },
                 position: { x: cy.width() / 2, y: cy.height() / 2 }
             });
 
@@ -1303,7 +1458,7 @@
                         if (existing.length === 0) {
                             const newEdge = cy.add({
                                 group: 'edges',
-                                data: { id: 'edge_' + Date.now(), source: sourceNode.id(), target: target.id(), edgeType: 'prereq' }
+                                data: { id: 'edge_' + Date.now(), source: sourceNode.id(), target: target.id(), edgeType: 'prereq', createdAt: Date.now() }
                             });
                             pushUndo('add', newEdge.jsons());
                         }
@@ -1319,7 +1474,8 @@
                                 const edge = existing[0];
                                 const oldData = edge.json();
                                 const transitions = edge.data('transitions') || [];
-                                transitions.push({ name: transName, url: transUrl, colors: colorsToSave });
+                                // 新しい遷移を追加（日時も付与）
+                                transitions.push({ name: transName, url: transUrl, colors: colorsToSave, createdAt: Date.now() });
                                 edge.data({
                                     transitions: transitions,
                                     label: buildTransitionLabel(transitions),
@@ -1329,7 +1485,7 @@
                                 pushUndo('edit', { ele: edge, oldData: oldData });
                                 updateGroupLegend();
                             } else {
-                                const transitions = [{ name: transName, url: transUrl, colors: colorsToSave }];
+                                const transitions = [{ name: transName, url: transUrl, colors: colorsToSave, createdAt: Date.now() }];
                                 const newEdge = cy.add({
                                     group: 'edges',
                                     data: {
@@ -1339,7 +1495,8 @@
                                         edgeType: 'trans',
                                         label: buildTransitionLabel(transitions),
                                         transitions: transitions,
-                                        hasTransUrl: !!transUrl
+                                        hasTransUrl: !!transUrl,
+                                        createdAt: Date.now()
                                     }
                                 });
                                 applyEdgeGradientStyle(newEdge);
@@ -1361,6 +1518,7 @@
             closeCloudLoadModal();
             closeCloudSaveModal();
             closeGroupListModal();
+            closeFilterModal();
         });
 
         document.getElementById('undo-btn').addEventListener('click', () => {
@@ -1413,6 +1571,9 @@
 
         toolbarPalette.init();
         modalPalette.init();
+        filterPalette.init();
+        filterPalette.setSelectedColors([]); // フィルターは初期状態では無選択
+
         normalizeGraphData();
         updateGroupLegend();
     </script>

@@ -231,6 +231,45 @@
         .search-result-title { font-weight: bold; font-size: 14px; color: #2c3e50; margin-bottom: 4px; }
         .search-result-tags { font-size: 11px; color: #2980b9; margin-bottom: 4px; }
         .search-result-stats { font-size: 11px; color: #7f8c8d; }
+
+        /* タグプリセット用 */
+        .tag-preset-section { margin-top: 8px; }
+        .tag-preset-title {
+            font-size: 11px; color: #555; font-weight: bold;
+            margin: 8px 0 4px 0; display: flex; align-items: center; gap: 6px;
+        }
+        .tag-preset-title .count-badge {
+            background: #bdc3c7; color: #fff; font-size: 10px;
+            padding: 1px 6px; border-radius: 8px; font-weight: normal;
+        }
+        .tag-chip-container {
+            display: flex; flex-wrap: wrap; gap: 5px;
+            max-height: 110px; overflow-y: auto;
+            padding: 6px; background: #f4f7f6; border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        .tag-chip {
+            display: inline-block; padding: 5px 10px;
+            background: #fff; color: #2980b9;
+            border: 1px solid #b3d4ec; border-radius: 14px;
+            font-size: 12px; cursor: pointer; user-select: none;
+            transition: 0.15s;
+        }
+        .tag-chip:hover { background: #2980b9; color: #fff; border-color: #2980b9; }
+        .tag-chip.purpose { color: #c0392b; border-color: #f1b8b1; }
+        .tag-chip.purpose:hover { background: #c0392b; color: #fff; border-color: #c0392b; }
+        .tag-chip.existing { color: #16a085; border-color: #a3dccd; }
+        .tag-chip.existing:hover { background: #16a085; color: #fff; border-color: #16a085; }
+        .tag-chip.active { background: #2c3e50!important; color: #fff!important; border-color: #2c3e50!important; }
+        .tag-toggle-btn {
+            background: none; border: none; color: #2980b9;
+            font-size: 12px; cursor: pointer; padding: 2px 6px;
+            text-decoration: underline; margin-left: auto;
+        }
+        .tag-empty-msg {
+            font-size: 11px; color: #95a5a6; padding: 6px;
+            text-align: center; width: 100%;
+        }
     </style>
 </head>
 
@@ -329,8 +368,29 @@
         </div>
         <div class="modal-field">
             <label for="cloud-tags-input">検索用タグ (任意)</label>
-            <input type="text" id="cloud-tags-input" placeholder="例: #ルービックキューブ #3x3">
-            <p class="hint-text">スペース区切りで複数入力できます。</p>
+            <input type="text" id="cloud-tags-input" placeholder="例: #ディアボロ #初心者技まとめ">
+            <p class="hint-text">スペース区切りで複数入力できます。下のチップをタップで追加/解除。</p>
+
+            <div class="tag-preset-section">
+                <div class="tag-preset-title">🎪 道具から選ぶ</div>
+                <div id="tag-preset-tools" class="tag-chip-container"></div>
+            </div>
+
+            <div class="tag-preset-section">
+                <div class="tag-preset-title">🎯 目的から選ぶ</div>
+                <div id="tag-preset-purposes" class="tag-chip-container"></div>
+            </div>
+
+            <div class="tag-preset-section">
+                <div class="tag-preset-title">
+                    <span>📚 みんなが使っているタグ</span>
+                    <span id="existing-tags-count" class="count-badge">-</span>
+                    <button type="button" id="reload-existing-tags-btn" class="tag-toggle-btn">🔄 取得</button>
+                </div>
+                <div id="tag-preset-existing" class="tag-chip-container">
+                    <div class="tag-empty-msg">「🔄 取得」ボタンを押すと既存のタグ一覧を表示します。</div>
+                </div>
+            </div>
         </div>
         <div class="modal-field">
             <label for="cloud-status-select">公開設定</label>
@@ -461,9 +521,166 @@
             document.getElementById('cloud-title-input').value = currentTreeTitle || '無題のハッセ図';
             document.getElementById('cloud-tags-input').value = currentTreeTags || '';
             document.getElementById('cloud-status-select').value = currentTreeStatus || 'private';
+            renderTagPresets(); // プリセットチップを描画
             openOverlay();
             document.getElementById('cloud-save-modal').style.display = 'block';
         });
+
+        // ===== タグプリセット機能 =====
+        const PRESET_TOOLS = [
+            'ボール', 'シガーボックス', 'デビルスティック', 'フラワースティック',
+            'ディアボロ', 'リング', 'クラブ', 'エイトリング', 'スタッフ', 'ポイ',
+            '皿', 'コンタクトボール', 'シェイカーカップ', 'けん玉', 'ダポクト',
+            'スリンキー', 'フロウワンド', 'ヨーヨー'
+        ];
+        const PRESET_PURPOSES = [
+            '初心者技まとめ', '布教用', '中級者向け', '上級者向け',
+            '練習中', '完成形', '大会用', 'ネタ技', '基礎技', 'チュートリアル'
+        ];
+        let existingTagsCache = null;
+
+        // 現在の入力欄からタグ集合を取得（すべて#始まりに正規化）
+        function getCurrentTagSet() {
+            const raw = document.getElementById('cloud-tags-input').value.trim();
+            if (!raw) return new Set();
+            return new Set(
+                raw.split(/\s+/)
+                   .map(t => t.startsWith('#') ? t : '#' + t)
+                   .filter(t => t.length > 1)
+            );
+        }
+
+        // タグ集合を入力欄に反映
+        function setTagSet(set) {
+            document.getElementById('cloud-tags-input').value = Array.from(set).join(' ');
+            renderTagPresets();
+        }
+
+        // トグル（選択中なら外し、そうでなければ追加）
+        function toggleTag(tag) {
+            const normalized = tag.startsWith('#') ? tag : '#' + tag;
+            const set = getCurrentTagSet();
+            if (set.has(normalized)) set.delete(normalized);
+            else set.add(normalized);
+            setTagSet(set);
+        }
+
+        // プリセットチップを描画
+        function renderTagPresets() {
+            const activeSet = getCurrentTagSet();
+
+            const toolsEl = document.getElementById('tag-preset-tools');
+            toolsEl.innerHTML = '';
+            PRESET_TOOLS.forEach(name => {
+                const tag = '#' + name;
+                const chip = document.createElement('span');
+                chip.className = 'tag-chip' + (activeSet.has(tag) ? ' active' : '');
+                chip.textContent = tag;
+                chip.addEventListener('click', () => toggleTag(tag));
+                toolsEl.appendChild(chip);
+            });
+
+            const purposesEl = document.getElementById('tag-preset-purposes');
+            purposesEl.innerHTML = '';
+            PRESET_PURPOSES.forEach(name => {
+                const tag = '#' + name;
+                const chip = document.createElement('span');
+                chip.className = 'tag-chip purpose' + (activeSet.has(tag) ? ' active' : '');
+                chip.textContent = tag;
+                chip.addEventListener('click', () => toggleTag(tag));
+                purposesEl.appendChild(chip);
+            });
+
+            renderExistingTags();
+        }
+
+        // 既存タグを描画
+        function renderExistingTags() {
+            const existingEl = document.getElementById('tag-preset-existing');
+            const countEl = document.getElementById('existing-tags-count');
+            const activeSet = getCurrentTagSet();
+
+            if (existingTagsCache === null) {
+                countEl.textContent = '-';
+                return;
+            }
+            countEl.textContent = existingTagsCache.length;
+
+            if (existingTagsCache.length === 0) {
+                existingEl.innerHTML = '<div class="tag-empty-msg">既存のタグはまだありません。</div>';
+                return;
+            }
+
+            existingEl.innerHTML = '';
+            // プリセットと重複しないものだけ表示
+            const presetSet = new Set([
+                ...PRESET_TOOLS.map(t => '#' + t),
+                ...PRESET_PURPOSES.map(t => '#' + t)
+            ]);
+            const customTags = existingTagsCache.filter(t => !presetSet.has(t));
+
+            if (customTags.length === 0) {
+                existingEl.innerHTML = '<div class="tag-empty-msg">プリセット以外の独自タグは見つかりませんでした。</div>';
+                return;
+            }
+
+            customTags.forEach(tag => {
+                const chip = document.createElement('span');
+                chip.className = 'tag-chip existing' + (activeSet.has(tag) ? ' active' : '');
+                chip.textContent = tag;
+                chip.addEventListener('click', () => toggleTag(tag));
+                existingEl.appendChild(chip);
+            });
+        }
+
+        // Supabaseから既存タグを集計取得（自分 + 公開・限定公開）
+        async function fetchExistingTags() {
+            const btn = document.getElementById('reload-existing-tags-btn');
+            const existingEl = document.getElementById('tag-preset-existing');
+            btn.textContent = '取得中...';
+            existingEl.innerHTML = '<div class="tag-empty-msg">読み込み中...</div>';
+
+            try {
+                const queries = [];
+                if (currentUser) {
+                    queries.push(sb.from('trees').select('tags').eq('user_id', currentUser.id));
+                }
+                queries.push(
+                    sb.from('trees').select('tags').in('status', ['public_readonly', 'public_writable', 'unlisted'])
+                );
+
+                const results = await Promise.all(queries);
+                const tagCount = new Map();
+
+                results.forEach(res => {
+                    if (res.error || !res.data) return;
+                    res.data.forEach(row => {
+                        if (!row.tags) return;
+                        row.tags.split(/\s+/).forEach(t => {
+                            if (!t) return;
+                            const normalized = t.startsWith('#') ? t : '#' + t;
+                            if (normalized.length <= 1) return;
+                            tagCount.set(normalized, (tagCount.get(normalized) || 0) + 1);
+                        });
+                    });
+                });
+
+                existingTagsCache = Array.from(tagCount.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .map(e => e[0]);
+
+                renderExistingTags();
+            } catch (e) {
+                console.error(e);
+                existingEl.innerHTML = '<div class="tag-empty-msg" style="color:#e74c3c;">取得に失敗しました</div>';
+            } finally {
+                btn.textContent = '🔄 取得';
+            }
+        }
+
+        document.getElementById('reload-existing-tags-btn').addEventListener('click', fetchExistingTags);
+        // テキストを手動で編集してもチップの選択状態を同期
+        document.getElementById('cloud-tags-input').addEventListener('input', renderTagPresets);
 
         document.getElementById('cloud-save-confirm-btn').addEventListener('click', async () => {
             const title = document.getElementById('cloud-title-input').value.trim();
@@ -1027,5 +1244,6 @@
 
         toolbarPalette.init(); modalPalette.init(); filterPalette.init(); filterPalette.setSelectedColors([]); normalizeGraphData(); updateGroupLegend();
     </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

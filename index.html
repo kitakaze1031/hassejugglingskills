@@ -232,7 +232,6 @@
         .search-result-tags { font-size: 11px; color: #2980b9; margin-bottom: 4px; }
         .search-result-stats { font-size: 11px; color: #7f8c8d; }
 
-        /* タグプリセット用 */
         .tag-preset-section { margin-top: 8px; }
         .tag-preset-title {
             font-size: 11px; color: #555; font-weight: bold;
@@ -545,12 +544,11 @@
             document.getElementById('cloud-title-input').value = currentTreeTitle || '無題のハッセ図';
             document.getElementById('cloud-tags-input').value = currentTreeTags || '';
             document.getElementById('cloud-status-select').value = currentTreeStatus || 'private';
-            renderTagPresets(); // プリセットチップを描画
+            renderTagPresets(); 
             openOverlay();
             document.getElementById('cloud-save-modal').style.display = 'block';
         });
 
-        // ===== タグプリセット機能 =====
         const PRESET_TOOLS = [
             'ボール', 'シガーボックス', 'デビルスティック', 'フラワースティック',
             'ディアボロ', 'リング', 'クラブ', 'エイトリング', 'スタッフ', 'ポイ',
@@ -563,143 +561,75 @@
         ];
         let existingTagsCache = null;
 
-        // タグプリセットの設定（保存用 / 検索用で共通ロジックを共有）
         const TAG_PRESET_CONTEXTS = {
-            save: {
-                inputId: 'cloud-tags-input',
-                toolsId: 'tag-preset-tools',
-                purposesId: 'tag-preset-purposes',
-                existingId: 'tag-preset-existing',
-                countId: 'existing-tags-count'
-            },
-            search: {
-                inputId: 'explore-search-input',
-                toolsId: 'search-tag-preset-tools',
-                purposesId: 'search-tag-preset-purposes',
-                existingId: 'search-tag-preset-existing',
-                countId: 'search-existing-tags-count'
-            }
+            save: { inputId: 'cloud-tags-input', toolsId: 'tag-preset-tools', purposesId: 'tag-preset-purposes', existingId: 'tag-preset-existing', countId: 'existing-tags-count' },
+            search: { inputId: 'explore-search-input', toolsId: 'search-tag-preset-tools', purposesId: 'search-tag-preset-purposes', existingId: 'search-tag-preset-existing', countId: 'search-existing-tags-count' }
         };
 
-        // 指定した入力欄からタグ集合を取得（すべて#始まりに正規化）
         function getTagSetFromInput(inputId) {
             const raw = document.getElementById(inputId).value.trim();
             if (!raw) return new Set();
-            return new Set(
-                raw.split(/\s+/)
-                   .map(t => t.startsWith('#') ? t : '#' + t)
-                   .filter(t => t.length > 1)
-            );
+            return new Set(raw.split(/\s+/).map(t => t.startsWith('#') ? t : '#' + t).filter(t => t.length > 1));
         }
 
-        // タグ集合を入力欄に反映
         function setTagSetToInput(ctx, set) {
             document.getElementById(ctx.inputId).value = Array.from(set).join(' ');
             renderTagPresetsFor(ctx);
         }
 
-        // トグル（選択中なら外し、そうでなければ追加）
         function toggleTagFor(ctx, tag) {
             const normalized = tag.startsWith('#') ? tag : '#' + tag;
             const set = getTagSetFromInput(ctx.inputId);
-            if (set.has(normalized)) set.delete(normalized);
-            else set.add(normalized);
+            if (set.has(normalized)) set.delete(normalized); else set.add(normalized);
             setTagSetToInput(ctx, set);
         }
 
-        // プリセットチップを描画（任意のコンテキスト）
         function renderTagPresetsFor(ctx) {
             const activeSet = getTagSetFromInput(ctx.inputId);
-
             const toolsEl = document.getElementById(ctx.toolsId);
             toolsEl.innerHTML = '';
             PRESET_TOOLS.forEach(name => {
-                const tag = '#' + name;
-                const chip = document.createElement('span');
-                chip.className = 'tag-chip' + (activeSet.has(tag) ? ' active' : '');
-                chip.textContent = tag;
-                chip.addEventListener('click', () => toggleTagFor(ctx, tag));
-                toolsEl.appendChild(chip);
+                const tag = '#' + name; const chip = document.createElement('span'); chip.className = 'tag-chip' + (activeSet.has(tag) ? ' active' : ''); chip.textContent = tag; chip.addEventListener('click', () => toggleTagFor(ctx, tag)); toolsEl.appendChild(chip);
             });
-
             const purposesEl = document.getElementById(ctx.purposesId);
             purposesEl.innerHTML = '';
             PRESET_PURPOSES.forEach(name => {
-                const tag = '#' + name;
-                const chip = document.createElement('span');
-                chip.className = 'tag-chip purpose' + (activeSet.has(tag) ? ' active' : '');
-                chip.textContent = tag;
-                chip.addEventListener('click', () => toggleTagFor(ctx, tag));
-                purposesEl.appendChild(chip);
+                const tag = '#' + name; const chip = document.createElement('span'); chip.className = 'tag-chip purpose' + (activeSet.has(tag) ? ' active' : ''); chip.textContent = tag; chip.addEventListener('click', () => toggleTagFor(ctx, tag)); purposesEl.appendChild(chip);
             });
-
             renderExistingTagsFor(ctx);
         }
 
-        // 既存タグを描画（任意のコンテキスト）
         function renderExistingTagsFor(ctx) {
             const existingEl = document.getElementById(ctx.existingId);
             const countEl = document.getElementById(ctx.countId);
             const activeSet = getTagSetFromInput(ctx.inputId);
 
-            if (existingTagsCache === null) {
-                countEl.textContent = '-';
-                return;
-            }
+            if (existingTagsCache === null) { countEl.textContent = '-'; return; }
             countEl.textContent = existingTagsCache.length;
-
-            if (existingTagsCache.length === 0) {
-                existingEl.innerHTML = '<div class="tag-empty-msg">既存のタグはまだありません。</div>';
-                return;
-            }
+            if (existingTagsCache.length === 0) { existingEl.innerHTML = '<div class="tag-empty-msg">既存のタグはまだありません。</div>'; return; }
 
             existingEl.innerHTML = '';
-            const presetSet = new Set([
-                ...PRESET_TOOLS.map(t => '#' + t),
-                ...PRESET_PURPOSES.map(t => '#' + t)
-            ]);
+            const presetSet = new Set([...PRESET_TOOLS.map(t => '#' + t), ...PRESET_PURPOSES.map(t => '#' + t)]);
             const customTags = existingTagsCache.filter(t => !presetSet.has(t));
+            if (customTags.length === 0) { existingEl.innerHTML = '<div class="tag-empty-msg">プリセット以外の独自タグは見つかりませんでした。</div>'; return; }
 
-            if (customTags.length === 0) {
-                existingEl.innerHTML = '<div class="tag-empty-msg">プリセット以外の独自タグは見つかりませんでした。</div>';
-                return;
-            }
-
-            customTags.forEach(tag => {
-                const chip = document.createElement('span');
-                chip.className = 'tag-chip existing' + (activeSet.has(tag) ? ' active' : '');
-                chip.textContent = tag;
-                chip.addEventListener('click', () => toggleTagFor(ctx, tag));
-                existingEl.appendChild(chip);
-            });
+            customTags.forEach(tag => { const chip = document.createElement('span'); chip.className = 'tag-chip existing' + (activeSet.has(tag) ? ' active' : ''); chip.textContent = tag; chip.addEventListener('click', () => toggleTagFor(ctx, tag)); existingEl.appendChild(chip); });
         }
 
-        // 下位互換：保存モーダル用の既存API
-        function getCurrentTagSet() { return getTagSetFromInput(TAG_PRESET_CONTEXTS.save.inputId); }
-        function setTagSet(set) { setTagSetToInput(TAG_PRESET_CONTEXTS.save, set); }
-        function toggleTag(tag) { toggleTagFor(TAG_PRESET_CONTEXTS.save, tag); }
         function renderTagPresets() { renderTagPresetsFor(TAG_PRESET_CONTEXTS.save); }
         function renderExistingTags() { renderExistingTagsFor(TAG_PRESET_CONTEXTS.save); }
 
-        // Supabaseから既存タグを集計取得（自分 + 公開・限定公開）
         async function fetchExistingTags() {
             const btn = document.getElementById('reload-existing-tags-btn');
             const existingEl = document.getElementById('tag-preset-existing');
             btn.textContent = '取得中...';
             existingEl.innerHTML = '<div class="tag-empty-msg">読み込み中...</div>';
-
             try {
                 const queries = [];
-                if (currentUser) {
-                    queries.push(sb.from('trees').select('tags').eq('user_id', currentUser.id));
-                }
-                queries.push(
-                    sb.from('trees').select('tags').in('status', ['public_readonly', 'public_writable', 'unlisted'])
-                );
-
+                if (currentUser) queries.push(sb.from('trees').select('tags').eq('user_id', currentUser.id));
+                queries.push(sb.from('trees').select('tags').in('status', ['public_readonly', 'public_writable', 'unlisted']));
                 const results = await Promise.all(queries);
                 const tagCount = new Map();
-
                 results.forEach(res => {
                     if (res.error || !res.data) return;
                     res.data.forEach(row => {
@@ -712,35 +642,19 @@
                         });
                     });
                 });
-
-                existingTagsCache = Array.from(tagCount.entries())
-                    .sort((a, b) => b[1] - a[1])
-                    .map(e => e[0]);
-
+                existingTagsCache = Array.from(tagCount.entries()).sort((a, b) => b[1] - a[1]).map(e => e[0]);
                 renderExistingTags();
             } catch (e) {
-                console.error(e);
-                existingEl.innerHTML = '<div class="tag-empty-msg" style="color:#e74c3c;">取得に失敗しました</div>';
+                console.error(e); existingEl.innerHTML = '<div class="tag-empty-msg" style="color:#e74c3c;">取得に失敗しました</div>';
             } finally {
                 btn.textContent = '🔄 取得';
             }
         }
 
-        document.getElementById('reload-existing-tags-btn').addEventListener('click', async () => {
-            await fetchExistingTags();
-            // 保存・検索両方の既存タグ表示を更新
-            renderExistingTagsFor(TAG_PRESET_CONTEXTS.save);
-            renderExistingTagsFor(TAG_PRESET_CONTEXTS.search);
-        });
+        document.getElementById('reload-existing-tags-btn').addEventListener('click', async () => { await fetchExistingTags(); renderExistingTagsFor(TAG_PRESET_CONTEXTS.save); renderExistingTagsFor(TAG_PRESET_CONTEXTS.search); });
         document.getElementById('search-reload-existing-tags-btn').addEventListener('click', async () => {
-            const btn = document.getElementById('search-reload-existing-tags-btn');
-            btn.textContent = '取得中...';
-            await fetchExistingTags();
-            btn.textContent = '🔄 取得';
-            renderExistingTagsFor(TAG_PRESET_CONTEXTS.search);
-            renderExistingTagsFor(TAG_PRESET_CONTEXTS.save);
+            const btn = document.getElementById('search-reload-existing-tags-btn'); btn.textContent = '取得中...'; await fetchExistingTags(); btn.textContent = '🔄 取得'; renderExistingTagsFor(TAG_PRESET_CONTEXTS.search); renderExistingTagsFor(TAG_PRESET_CONTEXTS.save);
         });
-        // テキストを手動で編集してもチップの選択状態を同期
         document.getElementById('cloud-tags-input').addEventListener('input', renderTagPresets);
         document.getElementById('explore-search-input').addEventListener('input', () => renderTagPresetsFor(TAG_PRESET_CONTEXTS.search));
 
@@ -754,7 +668,10 @@
             btn.textContent = '保存中...';
 
             const graphData = cy.json();
-            // tagsを保存用オブジェクトに含める
+            
+            // ★ 作成者名を取得（フルネーム、無ければメールの@より前、それも無ければ名無しさん）
+            const authorName = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '名無しさん';
+
             const { data, error } = await sb
                 .from('trees')
                 .upsert({
@@ -762,19 +679,16 @@
                     title: title,
                     graph_data: graphData,
                     status: status,
-                    tags: tags // ※Supabase側にこのカラムが必要です
+                    tags: tags,
+                    author_name: authorName // ★ 作成者名を追加
                 }, { onConflict: 'user_id,title' });
 
             btn.textContent = '保存する';
             if (error) {
-                console.error(error);
-                alert('保存に失敗しました（Supabaseに tags カラムを追加しましたか？）: ' + error.message);
+                console.error(error); alert('保存に失敗しました: ' + error.message);
             } else {
-                currentTreeTitle = title;
-                currentTreeTags = tags;
-                currentTreeStatus = status;
-                closeCloudSaveModal();
-                alert(`クラウドに「${title}」として保存しました！`);
+                currentTreeTitle = title; currentTreeTags = tags; currentTreeStatus = status;
+                closeCloudSaveModal(); alert(`クラウドに「${title}」として保存しました！`);
             }
         });
 
@@ -787,7 +701,6 @@
             const btn = document.getElementById('cloud-load-btn');
             btn.textContent = '取得中...';
 
-            // tagsも取得
             const { data, error } = await sb.from('trees').select('title, status, tags').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
 
             btn.textContent = '☁️ クラウド読込';
@@ -825,10 +738,8 @@
             openOverlay(); cloudLoadModal.style.display = 'block';
         });
 
-        // 共通のツリー読み込み関数（自他兼用）
         async function loadSpecificTree(title, userId) {
             const { data, error } = await sb.from('trees').select('graph_data, status, tags').eq('user_id', userId).eq('title', title).single();
-
             if (error) {
                 alert('読込失敗: ' + error.message);
             } else if (data && data.graph_data) {
@@ -837,12 +748,9 @@
                 currentTreeTitle = title;
                 currentTreeTags = data.tags || '';
                 currentTreeStatus = data.status || 'private';
-                
-                // 他人のpublic_readonlyを開いた場合の警告
                 if (currentUser && userId !== currentUser.id && currentTreeStatus === 'public_readonly') {
                     alert('【閲覧モード】\nこの図は読み取り専用です。上書き保存はできませんが、別名で保存すれば自分のデータとして編集可能です。');
                 }
-
                 normalizeGraphData();
                 updateGroupLegend();
                 closeCloudLoadModal();
@@ -850,17 +758,13 @@
             }
         }
 
-        // ==========================================
-        // みんなの図を探す（Explore）機能
-        // ==========================================
         const exploreModal = document.getElementById('explore-modal');
         function closeExploreModal() { exploreModal.style.display = 'none'; closeOverlayIfUnused(); }
 
         document.getElementById('explore-btn').addEventListener('click', () => {
             document.getElementById('explore-search-input').value = '';
             document.getElementById('explore-results-list').innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">検索ボタンを押すと公開されている図が表示されます。</p>';
-            openOverlay();
-            exploreModal.style.display = 'block';
+            openOverlay(); exploreModal.style.display = 'block';
         });
 
         document.getElementById('explore-execute-btn').addEventListener('click', async () => {
@@ -871,48 +775,30 @@
             btn.textContent = '検索中...';
             list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">読み込み中...</p>';
 
-            // 公開設定（public_readonly または public_writable）のものを最新順に取得
+            // ★ selectに author_name を追加
             const { data, error } = await sb
                 .from('trees')
-                .select('user_id, title, status, tags, graph_data, updated_at')
+                .select('user_id, title, status, tags, graph_data, updated_at, author_name')
                 .in('status', ['public_readonly', 'public_writable'])
                 .order('updated_at', { ascending: false })
-                .limit(50); // パフォーマンスのため上限50件
+                .limit(50); 
 
             btn.textContent = '検索';
 
-            if (error) {
-                list.innerHTML = `<p style="color:#e74c3c;">エラーが発生しました: ${error.message}</p>`;
-                return;
-            }
-            if (!data || data.length === 0) {
-                list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">公開されている図が見つかりませんでした。</p>';
-                return;
-            }
+            if (error) { list.innerHTML = `<p style="color:#e74c3c;">エラーが発生しました: ${error.message}</p>`; return; }
+            if (!data || data.length === 0) { list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">公開されている図が見つかりませんでした。</p>'; return; }
 
-            // クエリをトークンに分割：#始まりはタグトークン、それ以外は通常キーワード
             const tokens = rawQuery.split(/\s+/).filter(t => t.length > 0);
             const tagTokens = tokens.filter(t => t.startsWith('#')).map(t => t.toLowerCase());
             const wordTokens = tokens.filter(t => !t.startsWith('#')).map(t => t.toLowerCase());
 
-            // AND検索：すべてのトークンがヒットしたものだけ表示
             const filteredData = data.filter(item => {
-                if (tokens.length === 0) return true; // キーワードが空なら全て表示
-
-                // タグトークンは「item.tags」をトークン集合化して完全一致でANDマッチ
+                if (tokens.length === 0) return true;
                 if (tagTokens.length > 0) {
-                    const itemTagSet = new Set(
-                        (item.tags || '')
-                            .toLowerCase()
-                            .split(/\s+/)
-                            .map(t => t.startsWith('#') ? t : (t ? '#' + t : t))
-                            .filter(t => t.length > 1)
-                    );
+                    const itemTagSet = new Set((item.tags || '').toLowerCase().split(/\s+/).map(t => t.startsWith('#') ? t : (t ? '#' + t : t)).filter(t => t.length > 1));
                     const allTagsMatched = tagTokens.every(tag => itemTagSet.has(tag));
                     if (!allTagsMatched) return false;
                 }
-
-                // 通常キーワード：タイトル・タグ・ノード名・遷移名のどれかに含まれていること（トークン間はAND）
                 for (const w of wordTokens) {
                     let hit = false;
                     if (item.title && item.title.toLowerCase().includes(w)) hit = true;
@@ -922,22 +808,16 @@
                     }
                     if (!hit && item.graph_data && item.graph_data.elements && item.graph_data.elements.edges) {
                         hit = item.graph_data.elements.edges.some(e => {
-                            if (e.data && e.data.transitions) {
-                                return e.data.transitions.some(t => t.name && t.name.toLowerCase().includes(w));
-                            }
+                            if (e.data && e.data.transitions) return e.data.transitions.some(t => t.name && t.name.toLowerCase().includes(w));
                             return false;
                         });
                     }
                     if (!hit) return false;
                 }
-
                 return true;
             });
 
-            if (filteredData.length === 0) {
-                list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">条件に一致する図が見つかりませんでした。</p>';
-                return;
-            }
+            if (filteredData.length === 0) { list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">条件に一致する図が見つかりませんでした。</p>'; return; }
 
             list.innerHTML = '';
             filteredData.forEach(item => {
@@ -947,25 +827,74 @@
                 const nodeCount = (item.graph_data && item.graph_data.elements && item.graph_data.elements.nodes) ? item.graph_data.elements.nodes.length : 0;
                 const icon = item.status === 'public_writable' ? '✏️(共同編集可)' : '👁(閲覧のみ)';
                 const dateStr = item.updated_at ? new Date(item.updated_at).toLocaleDateString() : '';
+                const author = item.author_name || '名無しさん'; // ★ 作成者名を取得
 
+                // ★ ブックマークボタンと作成者表示を含んだHTML構造
                 el.innerHTML = `
-                    <div class="search-result-title">${item.title}</div>
-                    ${item.tags ? `<div class="search-result-tags">${item.tags}</div>` : ''}
-                    <div class="search-result-stats">${icon} | 技の数: ${nodeCount} | 更新: ${dateStr}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <div class="search-result-title">${item.title} <span style="font-size: 11px; color: #7f8c8d; font-weight: normal;">by ${author}</span></div>
+                            ${item.tags ? `<div class="search-result-tags">${item.tags}</div>` : ''}
+                            <div class="search-result-stats">${icon} | 技の数: ${nodeCount} | 更新: ${dateStr}</div>
+                        </div>
+                        <button class="bookmark-btn" style="background: none; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 16px; padding: 4px 8px; flex-shrink: 0;" title="ブックマーク">🔖</button>
+                    </div>
                 `;
                 
-                el.addEventListener('click', () => loadSpecificTree(item.title, item.user_id));
+                // ★ 図を開く処理 (ブックマークボタン以外をクリックした時)
+                el.addEventListener('click', (e) => {
+                    if (!e.target.closest('.bookmark-btn')) {
+                        loadSpecificTree(item.title, item.user_id);
+                    }
+                });
+
+                // ★ ブックマークボタンの制御
+                const bkmkBtn = el.querySelector('.bookmark-btn');
+                
+                // ログインしている場合、既にブックマーク済みか初期状態をチェックする
+                if (currentUser) {
+                    sb.from('bookmarks').select('id').eq('user_id', currentUser.id).eq('target_user_id', item.user_id).eq('target_title', item.title).single()
+                    .then(({data: existing}) => {
+                        if (existing) {
+                            bkmkBtn.textContent = '⭐';
+                            bkmkBtn.style.backgroundColor = '#fff3cd';
+                        }
+                    });
+                }
+
+                bkmkBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (!currentUser) return alert('ブックマークするにはログインしてください。');
+                    
+                    bkmkBtn.textContent = '⏳';
+                    
+                    const { data: existing } = await sb.from('bookmarks')
+                        .select('id')
+                        .eq('user_id', currentUser.id)
+                        .eq('target_user_id', item.user_id)
+                        .eq('target_title', item.title)
+                        .single();
+                        
+                    if (existing) {
+                        await sb.from('bookmarks').delete().eq('id', existing.id);
+                        bkmkBtn.textContent = '🔖';
+                        bkmkBtn.style.backgroundColor = 'transparent';
+                    } else {
+                        await sb.from('bookmarks').insert({
+                            user_id: currentUser.id,
+                            target_user_id: item.user_id,
+                            target_title: item.title
+                        });
+                        bkmkBtn.textContent = '⭐';
+                        bkmkBtn.style.backgroundColor = '#fff3cd';
+                    }
+                });
+
                 list.appendChild(el);
             });
         });
 
-        // 既存のカラーパレット管理、グラフ描画系コード（前回と同一）
-        const PRESET_COLORS = [
-            '#e74c3c', '#e91e63', '#9b59b6', '#673ab7', '#3f51b5',
-            '#3498db', '#03a9f4', '#00bcd4', '#1abc9c', '#2ecc71',
-            '#8bc34a', '#cddc39', '#f1c40f', '#ffc107', '#f39c12',
-            '#e67e22', '#795548', '#95a5a6', '#34495e', '#000000'
-        ];
+        const PRESET_COLORS = [ '#e74c3c', '#e91e63', '#9b59b6', '#673ab7', '#3f51b5', '#3498db', '#03a9f4', '#00bcd4', '#1abc9c', '#2ecc71', '#8bc34a', '#cddc39', '#f1c40f', '#ffc107', '#f39c12', '#e67e22', '#795548', '#95a5a6', '#34495e', '#000000' ];
 
         function normalizeColor(color) {
             if (!color) return '#95a5a6';
@@ -976,72 +905,32 @@
 
         class PaletteManager {
             constructor(containerId, inputColorId, inputTextId) {
-                this.container = document.getElementById(containerId);
-                this.inputColor = inputColorId ? document.getElementById(inputColorId) : null;
-                this.inputText = inputTextId ? document.getElementById(inputTextId) : null;
-                this.selectedColors = ['#3498db'];
-                this.activeColor = '#3498db';
+                this.container = document.getElementById(containerId); this.inputColor = inputColorId ? document.getElementById(inputColorId) : null; this.inputText = inputTextId ? document.getElementById(inputTextId) : null; this.selectedColors = ['#3498db']; this.activeColor = '#3498db';
             }
             init() {
                 this.container.innerHTML = '';
                 PRESET_COLORS.forEach(color => {
-                    const swatch = document.createElement('div');
-                    swatch.className = 'color-swatch'; swatch.style.backgroundColor = color; swatch.dataset.color = color.toLowerCase();
-                    swatch.addEventListener('click', () => this.handleSwatchClick(color));
-                    this.container.appendChild(swatch);
+                    const swatch = document.createElement('div'); swatch.className = 'color-swatch'; swatch.style.backgroundColor = color; swatch.dataset.color = color.toLowerCase();
+                    swatch.addEventListener('click', () => this.handleSwatchClick(color)); this.container.appendChild(swatch);
                 });
-                if (this.inputColor) {
-                    this.inputColor.addEventListener('input', (e) => {
-                        const color = normalizeColor(e.target.value);
-                        if (!this.selectedColors.includes(color)) this.selectedColors.push(color);
-                        this.activeColor = color; this.render(); this.syncText();
-                    });
-                }
-                if (this.inputText) {
-                    this.inputText.addEventListener('input', (e) => {
-                        const newName = e.target.value.trim();
-                        const colorMap = cy.data('colorMap') || {};
-                        if (this.activeColor) { colorMap[this.activeColor] = newName; cy.data('colorMap', colorMap); updateGroupLegend(); }
-                    });
-                }
+                if (this.inputColor) { this.inputColor.addEventListener('input', (e) => { const color = normalizeColor(e.target.value); if (!this.selectedColors.includes(color)) this.selectedColors.push(color); this.activeColor = color; this.render(); this.syncText(); }); }
+                if (this.inputText) { this.inputText.addEventListener('input', (e) => { const newName = e.target.value.trim(); const colorMap = cy.data('colorMap') || {}; if (this.activeColor) { colorMap[this.activeColor] = newName; cy.data('colorMap', colorMap); updateGroupLegend(); } }); }
                 this.render(); this.syncText();
             }
             handleSwatchClick(color) {
-                color = normalizeColor(color);
-                const index = this.selectedColors.indexOf(color);
-                if (index > -1) {
-                    this.selectedColors.splice(index, 1);
-                    if (this.activeColor === color) this.activeColor = this.selectedColors.length > 0 ? this.selectedColors[this.selectedColors.length - 1] : null;
-                } else {
-                    this.selectedColors.push(color); this.activeColor = color;
-                }
+                color = normalizeColor(color); const index = this.selectedColors.indexOf(color);
+                if (index > -1) { this.selectedColors.splice(index, 1); if (this.activeColor === color) this.activeColor = this.selectedColors.length > 0 ? this.selectedColors[this.selectedColors.length - 1] : null; } else { this.selectedColors.push(color); this.activeColor = color; }
                 this.render(); this.syncText();
             }
             render() {
                 this.container.querySelectorAll('.color-swatch').forEach(el => {
                     const c = el.dataset.color;
-                    if (this.selectedColors.includes(c)) {
-                        el.classList.add('selected');
-                        if (c === this.activeColor) { el.style.transform = 'scale(1.15)'; el.style.boxShadow = '0 0 0 2px #fff, 0 0 0 4px #000'; el.style.zIndex = '2'; } 
-                        else { el.style.transform = ''; el.style.boxShadow = ''; el.style.zIndex = ''; }
-                    } else { el.classList.remove('selected'); el.style.transform = ''; el.style.boxShadow = ''; el.style.zIndex = ''; }
+                    if (this.selectedColors.includes(c)) { el.classList.add('selected'); if (c === this.activeColor) { el.style.transform = 'scale(1.15)'; el.style.boxShadow = '0 0 0 2px #fff, 0 0 0 4px #000'; el.style.zIndex = '2'; } else { el.style.transform = ''; el.style.boxShadow = ''; el.style.zIndex = ''; } } else { el.classList.remove('selected'); el.style.transform = ''; el.style.boxShadow = ''; el.style.zIndex = ''; }
                 });
                 if (this.activeColor && this.inputColor) this.inputColor.value = this.activeColor;
             }
-            syncText() {
-                if (!this.inputText) return;
-                if (this.activeColor) {
-                    const colorMap = cy.data('colorMap') || {};
-                    this.inputText.value = colorMap[this.activeColor] || ''; this.inputText.disabled = false;
-                } else {
-                    this.inputText.value = ''; this.inputText.disabled = true;
-                }
-            }
-            setSelectedColors(colors) {
-                this.selectedColors = colors.map(normalizeColor);
-                this.activeColor = this.selectedColors.length > 0 ? this.selectedColors[this.selectedColors.length - 1] : null;
-                this.render(); this.syncText();
-            }
+            syncText() { if (!this.inputText) return; if (this.activeColor) { const colorMap = cy.data('colorMap') || {}; this.inputText.value = colorMap[this.activeColor] || ''; this.inputText.disabled = false; } else { this.inputText.value = ''; this.inputText.disabled = true; } }
+            setSelectedColors(colors) { this.selectedColors = colors.map(normalizeColor); this.activeColor = this.selectedColors.length > 0 ? this.selectedColors[this.selectedColors.length - 1] : null; this.render(); this.syncText(); }
             getSelectedColors() { return this.selectedColors; }
         }
 
@@ -1063,41 +952,26 @@
         });
 
         function applyNodePieStyle(node) {
-            let colors = node.data('colors') || [];
-            if (colors.length === 0 && node.data('color')) colors = [node.data('color')];
-            if (colors.length === 0) colors = ['#95a5a6'];
-
-            if (colors.length === 1) { node.style({ 'background-color': colors[0], 'pie-size': '0%' }); }
-            else {
-                let styleObj = { 'background-color': '#95a5a6', 'pie-size': '100%' };
-                const percent = 100 / colors.length;
-                for (let i = 1; i <= 16; i++) {
-                    if (i <= colors.length) { styleObj[`pie-${i}-background-color`] = colors[i - 1]; styleObj[`pie-${i}-background-size`] = percent; }
-                    else { styleObj[`pie-${i}-background-size`] = 0; }
-                }
+            let colors = node.data('colors') || []; if (colors.length === 0 && node.data('color')) colors = [node.data('color')]; if (colors.length === 0) colors = ['#95a5a6'];
+            if (colors.length === 1) { node.style({ 'background-color': colors[0], 'pie-size': '0%' }); } else {
+                let styleObj = { 'background-color': '#95a5a6', 'pie-size': '100%' }; const percent = 100 / colors.length;
+                for (let i = 1; i <= 16; i++) { if (i <= colors.length) { styleObj[`pie-${i}-background-color`] = colors[i - 1]; styleObj[`pie-${i}-background-size`] = percent; } else { styleObj[`pie-${i}-background-size`] = 0; } }
                 node.style(styleObj);
             }
         }
 
         function applyEdgeGradientStyle(edge) {
-            const transitions = edge.data('transitions') || [];
-            let allColors = [];
-            transitions.forEach(t => { if (t.colors) t.colors.forEach(c => { if (!allColors.includes(c)) allColors.push(c); }); });
-            if (allColors.length === 0) allColors = ['#95a5a6'];
-
-            if (allColors.length === 1) { edge.style({ 'line-fill': 'solid', 'line-color': allColors[0], 'target-arrow-color': allColors[0] }); }
-            else {
-                const step = 100 / (allColors.length - 1);
-                const positions = allColors.map((c, i) => (i * step) + '%');
+            const transitions = edge.data('transitions') || []; let allColors = [];
+            transitions.forEach(t => { if (t.colors) t.colors.forEach(c => { if (!allColors.includes(c)) allColors.push(c); }); }); if (allColors.length === 0) allColors = ['#95a5a6'];
+            if (allColors.length === 1) { edge.style({ 'line-fill': 'solid', 'line-color': allColors[0], 'target-arrow-color': allColors[0] }); } else {
+                const step = 100 / (allColors.length - 1); const positions = allColors.map((c, i) => (i * step) + '%');
                 edge.style({ 'line-fill': 'linear-gradient', 'line-gradient-stop-colors': allColors.join(' '), 'line-gradient-stop-positions': positions.join(' '), 'target-arrow-color': allColors[allColors.length - 1] });
             }
         }
 
         const btns = { view: document.getElementById('mode-view-btn'), prereq: document.getElementById('mode-prereq-btn'), trans: document.getElementById('mode-trans-btn'), delete: document.getElementById('mode-delete-btn') };
         const modalOverlay = document.getElementById('modal-overlay'); const linkModal = document.getElementById('link-modal'); const modalContent = document.getElementById('modal-content'); const nodeEditor = document.getElementById('node-editor'); const transEditor = document.getElementById('trans-editor'); const groupListModal = document.getElementById('group-list-modal'); const filterModal = document.getElementById('filter-modal');
-        const toolbarPalette = new PaletteManager('toolbar-color-palette', 'node-color', 'group-name-input');
-        const modalPalette = new PaletteManager('modal-color-palette', 'node-color-input', 'node-group-input');
-        const filterPalette = new PaletteManager('filter-color-palette', null, null);
+        const toolbarPalette = new PaletteManager('toolbar-color-palette', 'node-color', 'group-name-input'); const modalPalette = new PaletteManager('modal-color-palette', 'node-color-input', 'node-group-input'); const filterPalette = new PaletteManager('filter-color-palette', null, null);
 
         function setMode(mode) {
             currentMode = mode; Object.values(btns).forEach(btn => btn.className = ''); cy.elements().removeClass('selected-source'); sourceNode = null;
@@ -1113,35 +987,23 @@
         function normalizeGraphData() {
             let colorMap = cy.data('colorMap') || {}; let mapUpdated = false;
             cy.nodes().forEach(node => {
-                let colors = node.data('colors');
-                if (!colors || !Array.isArray(colors)) { colors = [normalizeColor(node.data('color') || '#3498db')]; node.data('colors', colors); }
-                let oldGroupName = (node.data('groupName') || '').trim();
-                if (oldGroupName && colors.length > 0) { if (!colorMap[colors[0]]) { colorMap[colors[0]] = oldGroupName; mapUpdated = true; } }
-                if (!node.data('rawName')) { const oldLabel = node.data('label') || ''; node.data('rawName', oldLabel.replace(/\n?🔗/g, '')); }
-                updateNodeDisplay(node); applyNodePieStyle(node);
+                let colors = node.data('colors'); if (!colors || !Array.isArray(colors)) { colors = [normalizeColor(node.data('color') || '#3498db')]; node.data('colors', colors); }
+                let oldGroupName = (node.data('groupName') || '').trim(); if (oldGroupName && colors.length > 0) { if (!colorMap[colors[0]]) { colorMap[colors[0]] = oldGroupName; mapUpdated = true; } }
+                if (!node.data('rawName')) { const oldLabel = node.data('label') || ''; node.data('rawName', oldLabel.replace(/\n?🔗/g, '')); } updateNodeDisplay(node); applyNodePieStyle(node);
             });
             if (mapUpdated || !cy.data('colorMap')) cy.data('colorMap', colorMap);
 
             const edgesToMerge = {}; const edgesToRemove = [];
             cy.edges('[edgeType="trans"]').forEach(edge => {
                 let transitions = edge.data('transitions');
-                if (!transitions || transitions.length === 0) {
-                    const cleanName = (edge.data('rawName') || edge.data('label') || '').replace(/ 🎥/g, '').trim();
-                    const edgeColor = edge.data('color') ? normalizeColor(edge.data('color')) : '#95a5a6';
-                    if (cleanName !== '') transitions = [{ name: cleanName, url: edge.data('url') || '', colors: [edgeColor], createdAt: getTimestamp(edge) }];
-                    else transitions = [];
-                }
-                if (transitions.length > 0) {
-                    const key = `${edge.source().id()}->${edge.target().id()}`;
-                    if (!edgesToMerge[key]) { edgesToMerge[key] = { edge: edge, transitions: [...transitions] }; } else { edgesToMerge[key].transitions.push(...transitions); edgesToRemove.push(edge); }
-                } else { edgesToRemove.push(edge); }
+                if (!transitions || transitions.length === 0) { const cleanName = (edge.data('rawName') || edge.data('label') || '').replace(/ 🎥/g, '').trim(); const edgeColor = edge.data('color') ? normalizeColor(edge.data('color')) : '#95a5a6'; if (cleanName !== '') transitions = [{ name: cleanName, url: edge.data('url') || '', colors: [edgeColor], createdAt: getTimestamp(edge) }]; else transitions = []; }
+                if (transitions.length > 0) { const key = `${edge.source().id()}->${edge.target().id()}`; if (!edgesToMerge[key]) { edgesToMerge[key] = { edge: edge, transitions: [...transitions] }; } else { edgesToMerge[key].transitions.push(...transitions); edgesToRemove.push(edge); } } else { edgesToRemove.push(edge); }
             });
             edgesToRemove.forEach(e => e.remove());
             Object.values(edgesToMerge).forEach(item => { item.transitions.forEach(t => { if (!t.colors || t.colors.length === 0) t.colors = ['#95a5a6']; }); item.edge.data({ transitions: item.transitions, label: buildTransitionLabel(item.transitions), hasTransUrl: item.transitions.some(t => t.url) }); applyEdgeGradientStyle(item.edge); });
         }
 
-        document.getElementById('filter-btn').addEventListener('click', () => { openOverlay(); filterModal.style.display = 'block'; });
-        function closeFilterModal() { filterModal.style.display = 'none'; closeOverlayIfUnused(); }
+        document.getElementById('filter-btn').addEventListener('click', () => { openOverlay(); filterModal.style.display = 'block'; }); function closeFilterModal() { filterModal.style.display = 'none'; closeOverlayIfUnused(); }
         document.getElementById('apply-filter-btn').addEventListener('click', () => {
             const nameQ = document.getElementById('filter-name').value.trim().toLowerCase(); const startStr = document.getElementById('filter-date-start').value; const endStr = document.getElementById('filter-date-end').value; const selectedColors = filterPalette.getSelectedColors();
             let startTs = 0; let endTs = Number.MAX_SAFE_INTEGER; if (startStr) startTs = new Date(`${startStr}T00:00:00`).getTime(); if (endStr) endTs = new Date(`${endStr}T23:59:59`).getTime();
@@ -1152,8 +1014,7 @@
                     if (edge.data('edgeType') === 'prereq') { if (edge.source().hasClass('filtered-out') || edge.target().hasClass('filtered-out')) { edge.addClass('filtered-out'); } return; }
                     if (edge.data('edgeType') === 'trans') { const transitions = edge.data('transitions') || []; const ts = getTimestamp(edge); let edgeMatch = false; transitions.forEach(t => { let match = true; const tName = (t.name || '').toLowerCase(); const tColors = t.colors || []; const tTs = t.createdAt || ts; if (nameQ && !tName.includes(nameQ)) match = false; if (tTs < startTs || tTs > endTs) match = false; if (selectedColors.length > 0) { const hasColor = tColors.some(c => selectedColors.includes(c)); if (!hasColor) match = false; } if (match) edgeMatch = true; }); if (!edgeMatch) edge.addClass('filtered-out'); }
                 });
-            });
-            closeFilterModal();
+            }); closeFilterModal();
         });
         document.getElementById('reset-filter-btn').addEventListener('click', () => { document.getElementById('filter-name').value = ''; document.getElementById('filter-date-start').value = ''; document.getElementById('filter-date-end').value = ''; filterPalette.setSelectedColors([]); cy.elements().removeClass('filtered-out'); closeFilterModal(); });
 
@@ -1170,27 +1031,18 @@
                     if (item.url) { const btn = document.createElement('a'); btn.href = item.url; btn.target = '_blank'; btn.className = 'modal-btn'; btn.style.margin = '0'; btn.style.width = 'auto'; btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; btn.style.textDecoration = 'none'; btn.textContent = '🎥 動画'; row.appendChild(btn); }
                     content.appendChild(row);
                 });
-            }
-            openOverlay(); groupListModal.style.display = 'block';
+            } openOverlay(); groupListModal.style.display = 'block';
         }
         function closeGroupListModal() { groupListModal.style.display = 'none'; closeOverlayIfUnused(); }
 
         function updateGroupLegend() {
             const list = document.getElementById('group-legend-list'); const colorMap = cy.data('colorMap') || {}; const usedColors = new Map();
-            cy.nodes().forEach(node => { let colors = node.data('colors') || []; colors.forEach(c => usedColors.set(c, (usedColors.get(c) || 0) + 1)); });
-            cy.edges('[edgeType="trans"]').forEach(edge => { let transitions = edge.data('transitions') || []; transitions.forEach(t => { let colors = t.colors || []; colors.forEach(c => usedColors.set(c, (usedColors.get(c) || 0) + 1)); }); });
+            cy.nodes().forEach(node => { let colors = node.data('colors') || []; colors.forEach(c => usedColors.set(c, (usedColors.get(c) || 0) + 1)); }); cy.edges('[edgeType="trans"]').forEach(edge => { let transitions = edge.data('transitions') || []; transitions.forEach(t => { let colors = t.colors || []; colors.forEach(c => usedColors.set(c, (usedColors.get(c) || 0) + 1)); }); });
             if (usedColors.size === 0) { list.innerHTML = '<div class="legend-empty">技や遷移線を追加すると色ごとのグループが表示されます。</div>'; return; }
-            list.innerHTML = '';
-            Array.from(usedColors.entries()).sort((a, b) => b[1] - a[1]).forEach(([color, count]) => {
-                const item = document.createElement('div'); item.className = 'legend-item'; const displayName = colorMap[color] || '(名前なし)';
-                item.innerHTML = `<span class="legend-swatch" style="background:${color}"></span><span style="font-size:13px; font-weight:bold; color:#34495e;">${displayName} (${count})</span>`;
-                item.addEventListener('click', () => showGroupListModal(color)); list.appendChild(item);
-            });
+            list.innerHTML = ''; Array.from(usedColors.entries()).sort((a, b) => b[1] - a[1]).forEach(([color, count]) => { const item = document.createElement('div'); item.className = 'legend-item'; const displayName = colorMap[color] || '(名前なし)'; item.innerHTML = `<span class="legend-swatch" style="background:${color}"></span><span style="font-size:13px; font-weight:bold; color:#34495e;">${displayName} (${count})</span>`; item.addEventListener('click', () => showGroupListModal(color)); list.appendChild(item); });
         }
 
-        function closeModal() { linkModal.style.display = 'none'; closeOverlayIfUnused(); }
-        function closeNodeEditor() { nodeEditor.style.display = 'none'; editingNode = null; closeOverlayIfUnused(); }
-        function closeTransEditor() { transEditor.style.display = 'none'; editingEdge = null; closeOverlayIfUnused(); }
+        function closeModal() { linkModal.style.display = 'none'; closeOverlayIfUnused(); } function closeNodeEditor() { nodeEditor.style.display = 'none'; editingNode = null; closeOverlayIfUnused(); } function closeTransEditor() { transEditor.style.display = 'none'; editingEdge = null; closeOverlayIfUnused(); }
 
         function showModal(transitions) {
             modalContent.innerHTML = '';
@@ -1200,14 +1052,10 @@
                 colors.forEach(c => { const swatch = document.createElement('div'); swatch.style.width = '14px'; swatch.style.height = '14px'; swatch.style.borderRadius = '50%'; swatch.style.backgroundColor = c; swatch.style.border = '1px solid rgba(0,0,0,0.2)'; swatch.style.flexShrink = '0'; colorContainer.appendChild(swatch); });
                 const btn = document.createElement('a'); btn.className = 'modal-btn' + (t.url ? '' : ' disabled'); btn.textContent = t.name + (t.url ? ' 🎥' : ''); btn.style.flex = '1'; btn.style.margin = '0'; if (t.url) { btn.href = t.url; btn.target = '_blank'; }
                 row.appendChild(colorContainer); row.appendChild(btn); modalContent.appendChild(row);
-            });
-            openOverlay(); linkModal.style.display = 'block';
+            }); openOverlay(); linkModal.style.display = 'block';
         }
 
-        function openNodeEditor(node) {
-            editingNode = node; document.getElementById('node-name-input').value = node.data('rawName') || ''; document.getElementById('node-url-input').value = node.data('url') || '';
-            modalPalette.setSelectedColors(node.data('colors') || []); openOverlay(); nodeEditor.style.display = 'block';
-        }
+        function openNodeEditor(node) { editingNode = node; document.getElementById('node-name-input').value = node.data('rawName') || ''; document.getElementById('node-url-input').value = node.data('url') || ''; modalPalette.setSelectedColors(node.data('colors') || []); openOverlay(); nodeEditor.style.display = 'block'; }
 
         function openTransEditor(edge) {
             editingEdge = edge; const transitions = edge.data('transitions') || []; currentEditingTransitions = JSON.parse(JSON.stringify(transitions));
@@ -1217,8 +1065,7 @@
                 box.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;"><span style="font-size:12px; font-weight:bold; color:#2c3e50;">技の遷移 #${i + 1}</span>${transitions.length > 1 ? `<button type="button" class="del-trans-btn" data-index="${i}" style="background-color:#e74c3c; padding:4px 8px; font-size:11px;">削除</button>` : ''}</div><div class="modal-field"><label style="font-size:11px; margin-bottom:2px; color:#555;">遷移名</label><input type="text" class="trans-name-field" value="${t.name || ''}" placeholder="遷移名を入力" style="padding:6px; font-size:13px;"></div><div class="modal-field"><label style="font-size:11px; margin-bottom:2px; color:#555;">動画URL</label><input type="url" class="trans-url-field" value="${t.url || ''}" placeholder="https://..." style="padding:6px; font-size:13px;"></div><div class="modal-field" style="margin-bottom:0;"><label style="font-size:11px; margin-bottom:2px; color:#555;">色分け（複数タップ可）</label><div class="color-palette-container" style="background: transparent; padding: 0; justify-content: flex-start; margin-bottom: 8px;"><div id="trans-palette-${i}" class="color-palette" style="grid-template-columns: repeat(10, 22px); gap: 4px;"></div></div></div><div class="modal-field"><label style="font-size:11px; margin-bottom:2px; color:#555;">グループ名（最後にタップした選択色名）</label><input type="text" id="trans-group-input-${i}" placeholder="グループ名を入力" style="padding:6px; font-size:13px;"></div>`;
                 container.appendChild(box); const pm = new PaletteManager(`trans-palette-${i}`, null, `trans-group-input-${i}`); pm.init(); pm.setSelectedColors(t.colors && t.colors.length > 0 ? t.colors : ['#95a5a6']); activeTransPalettes.push(pm);
             });
-            container.querySelectorAll('.del-trans-btn').forEach(btn => { btn.addEventListener('click', (e) => { const indexToRemove = parseInt(e.currentTarget.dataset.index); const currentTrans = [...editingEdge.data('transitions')]; currentTrans.splice(indexToRemove, 1); editingEdge.data('transitions', currentTrans); openTransEditor(editingEdge); }); });
-            openOverlay(); transEditor.style.display = 'block';
+            container.querySelectorAll('.del-trans-btn').forEach(btn => { btn.addEventListener('click', (e) => { const indexToRemove = parseInt(e.currentTarget.dataset.index); const currentTrans = [...editingEdge.data('transitions')]; currentTrans.splice(indexToRemove, 1); editingEdge.data('transitions', currentTrans); openTransEditor(editingEdge); }); }); openOverlay(); transEditor.style.display = 'block';
         }
 
         function saveNodeEditor() {
@@ -1269,11 +1116,9 @@
                 return;
             }
             if ((currentMode === 'prereq' || currentMode === 'trans') && target.isNode()) {
-                if (!sourceNode) { sourceNode = target; sourceNode.addClass('selected-source'); }
-                else {
+                if (!sourceNode) { sourceNode = target; sourceNode.addClass('selected-source'); } else {
                     if (currentMode === 'prereq') {
-                        if (sourceNode.id() === target.id()) return alert('前提技は自分自身に繋げません。');
-                        const existing = cy.edges(`[source="${sourceNode.id()}"][target="${target.id()}"][edgeType="prereq"]`);
+                        if (sourceNode.id() === target.id()) return alert('前提技は自分自身に繋げません。'); const existing = cy.edges(`[source="${sourceNode.id()}"][target="${target.id()}"][edgeType="prereq"]`);
                         if (existing.length === 0) { const newEdge = cy.add({ group: 'edges', data: { id: 'edge_' + Date.now(), source: sourceNode.id(), target: target.id(), edgeType: 'prereq', createdAt: Date.now() } }); pushUndo('add', newEdge.jsons()); }
                     } else if (currentMode === 'trans') {
                         const transName = prompt('遷移技の名前（入り方など）:');
@@ -1288,15 +1133,12 @@
                                 applyEdgeGradientStyle(newEdge); pushUndo('add', newEdge.jsons()); updateGroupLegend();
                             }
                         }
-                    }
-                    sourceNode.removeClass('selected-source'); sourceNode = null;
+                    } sourceNode.removeClass('selected-source'); sourceNode = null;
                 }
             }
         }
 
-        modalOverlay.addEventListener('click', (e) => {
-            if (e.target === modalOverlay) { closeModal(); closeNodeEditor(); closeTransEditor(); closeCloudLoadModal(); closeCloudSaveModal(); closeGroupListModal(); closeFilterModal(); closeExploreModal(); }
-        });
+        modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) { closeModal(); closeNodeEditor(); closeTransEditor(); closeCloudLoadModal(); closeCloudSaveModal(); closeGroupListModal(); closeFilterModal(); closeExploreModal(); } });
 
         document.getElementById('undo-btn').addEventListener('click', () => {
             if (undoStack.length === 0) return alert('これ以上戻せません。'); const lastAction = undoStack.pop();
@@ -1307,21 +1149,10 @@
         });
 
         document.getElementById('arrange-btn').addEventListener('click', () => { cy.layout({ name: 'breadthfirst', directed: true, padding: 50, spacingFactor: 1.5 }).run(); });
-
-        document.getElementById('local-save-btn').addEventListener('click', () => {
-            const data = cy.json(); const jsonStr = JSON.stringify(data, null, 2); const blob = new Blob([jsonStr], { type: 'application/json' }); const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = 'juggling_hasse_data.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-        });
-
-        document.getElementById('file-input').addEventListener('change', (evt) => {
-            const file = evt.target.files[0]; if (!file) return; const reader = new FileReader();
-            reader.onload = (e) => { try { const data = JSON.parse(e.target.result); cy.json(data); undoStack = []; normalizeGraphData(); updateGroupLegend(); } catch (err) { alert('ファイルの読み込みに失敗しました。'); } };
-            reader.readAsText(file); evt.target.value = '';
-        });
+        document.getElementById('local-save-btn').addEventListener('click', () => { const data = cy.json(); const jsonStr = JSON.stringify(data, null, 2); const blob = new Blob([jsonStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'juggling_hasse_data.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); });
+        document.getElementById('file-input').addEventListener('change', (evt) => { const file = evt.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); cy.json(data); undoStack = []; normalizeGraphData(); updateGroupLegend(); } catch (err) { alert('ファイルの読み込みに失敗しました。'); } }; reader.readAsText(file); evt.target.value = ''; });
 
         toolbarPalette.init(); modalPalette.init(); filterPalette.init(); filterPalette.setSelectedColors([]); normalizeGraphData(); updateGroupLegend();
     </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

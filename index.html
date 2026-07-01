@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ハッセ図エディタ（みんなの図 検索対応版）</title>
+    <title>ハッセ図エディタ（みんなの図 PIN対応版）</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -289,13 +289,20 @@
                 <option value="private" selected>🔒 非公開 (自分だけ・URL共有不可)</option>
             </select>
         </div>
+        
+        <!-- ★ ここにPIN用の入力欄を追加しました ★ -->
         <div class="modal-field">
             <label for="cloud-edit-select">✏️ 共同編集権限</label>
             <select id="cloud-edit-select" style="color: #2c3e50; font-weight: bold; background-color: #fff;">
                 <option value="anyone">✅ 誰でも共同編集可</option>
-                <option value="approved">👥 承認した人のみ可</option>
+                <option value="approved">👥 承認した人のみ可 (要PIN)</option>
                 <option value="none" selected>❌ 共同編集不可 (自分だけ)</option>
             </select>
+        </div>
+        <div class="modal-field" id="pin-input-container" style="display: none;">
+            <label for="cloud-pin-input">🔑 編集用PIN (4桁の数字)</label>
+            <input type="text" id="cloud-pin-input" placeholder="例: 1234" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" style="letter-spacing: 4px; font-family: monospace; font-size: 18px;">
+            <p class="hint-text">半角数字で <b>4桁</b> を設定してください（例: 0000〜9999）。<br>他の人がこの図を編集・上書き保存する際に必要になります。</p>
         </div>
 
         <button id="cloud-save-confirm-btn" class="modal-btn">保存する</button>
@@ -360,11 +367,12 @@
 
         let currentUser = null;
         let currentTreeTitle = '';
-        let currentTreeStatus = 'private'; // visibility (public, unlisted, private)
-        let currentTreeEditPermission = 'none'; // edit_permission (anyone, approved, none)
+        let currentTreeStatus = 'private';
+        let currentTreeEditPermission = 'none';
+        let currentTreeEditPin = ''; // PIN用の変数追加
         let currentTreeTags = '';
         let currentTreeAuthor = ''; 
-        let currentTreeOwnerId = null; // 現在開いている図の作成者ID
+        let currentTreeOwnerId = null;
         let isReadOnlyTree = false;
         let treeStateVersion = 0;
         let isNewDraft = false;
@@ -429,10 +437,13 @@
         function setCloudPermissionControlsDisabled(disabled) {
             const statusSelect = document.getElementById('cloud-status-select');
             const editSelect = document.getElementById('cloud-edit-select');
+            const pinInput = document.getElementById('cloud-pin-input');
             statusSelect.disabled = disabled;
             editSelect.disabled = disabled;
+            pinInput.disabled = disabled;
             statusSelect.style.opacity = disabled ? '0.6' : '1';
             editSelect.style.opacity = disabled ? '0.6' : '1';
+            pinInput.style.opacity = disabled ? '0.6' : '1';
         }
 
         async function buildCopySaveTitle(baseTitle) {
@@ -459,25 +470,23 @@
             if (!confirm('現在の図を閉じて、新しい図を作成しますか？（保存していない内容は消えます）')) return;
             treeStateVersion += 1;
 
-            // 1. グラフを完全にクリア＆裏側のグループ名データも確実に消去 ★修正ポイント
             if (typeof cy !== 'undefined') {
                 cy.elements().remove();
                 cy.data('colorMap', {}); 
                 try { cy.css({}); } catch (e) { /* ignore */ }
             }
 
-            // 2. 内部状態を初期化
             undoStack = [];
             currentTreeTitle = '';
             currentTreeStatus = 'private';
             currentTreeEditPermission = 'none';
+            currentTreeEditPin = ''; // リセット
             currentTreeTags = '';
             currentTreeAuthor = '';
             currentTreeOwnerId = null;
             isReadOnlyTree = false;
             isNewDraft = true;
 
-            // 3. UI側も安全に初期化（要素が存在するかチェック）
             setReadOnlyUI(false);
             updateAuthUI();
 
@@ -489,14 +498,14 @@
 
             const shareBtn = document.getElementById('share-btn'); if (shareBtn) shareBtn.style.display = 'none';
 
-            // 4. クラウド保存ダイアログ周りの入力をリセット
             const cloudTitle = document.getElementById('cloud-title-input'); if (cloudTitle) cloudTitle.value = '';
             const cloudAuthor = document.getElementById('cloud-author-input'); if (cloudAuthor) cloudAuthor.value = '';
             const cloudTags = document.getElementById('cloud-tags-input'); if (cloudTags) cloudTags.value = '';
             const statusSelect = document.getElementById('cloud-status-select'); if (statusSelect) { statusSelect.value = 'private'; statusSelect.disabled = false; statusSelect.style.opacity = '1'; }
             const editSelect = document.getElementById('cloud-edit-select'); if (editSelect) { editSelect.value = 'none'; editSelect.disabled = false; editSelect.style.opacity = '1'; }
+            const pinInput = document.getElementById('cloud-pin-input'); if (pinInput) { pinInput.value = ''; pinInput.disabled = false; }
+            const pinContainer = document.getElementById('pin-input-container'); if (pinContainer) pinContainer.style.display = 'none';
 
-            // 5. URLのパラメータ（?uid=...&t=...）を消去して完全に新規にする ★修正ポイント
             const newUrl = new URL(window.location.origin + window.location.pathname);
             window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
 
@@ -509,7 +518,6 @@
             const undoBtn = document.getElementById('undo-btn'); if (undoBtn) { undoBtn.disabled = false; undoBtn.style.opacity = '1'; undoBtn.style.cursor = 'pointer'; }
             const arrangeBtn = document.getElementById('arrange-btn'); if (arrangeBtn) { arrangeBtn.disabled = false; arrangeBtn.style.opacity = '1'; arrangeBtn.style.cursor = 'pointer'; }
 
-            // 正しく初期化された状態で表示を更新
             normalizeGraphData();
             updateGroupLegend();
             setMode('view');
@@ -519,23 +527,48 @@
 
         document.getElementById('new-diagram-btn').addEventListener('click', startNewDiagram);
 
+        // ★ PIN入力を4桁数字のみに制限（半角数字以外は自動除去）
+        document.getElementById('cloud-pin-input').addEventListener('input', (e) => {
+            const digitsOnly = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+            if (e.target.value !== digitsOnly) e.target.value = digitsOnly;
+        });
+
+        // ★ セレクトボックス変更時のPIN入力欄の表示切替
+        document.getElementById('cloud-edit-select').addEventListener('change', (e) => {
+            const pinContainer = document.getElementById('pin-input-container');
+            if (e.target.value === 'approved') {
+                pinContainer.style.display = 'block';
+            } else {
+                pinContainer.style.display = 'none';
+            }
+        });
+
         document.getElementById('cloud-save-btn').addEventListener('click', () => {
             if (!currentUser) return alert('ログインしてください。');
             if (isReadOnlyTree) return alert('この図は読み取り専用のため、保存できません。');
 
             const isSavingOtherUserTree = Boolean(currentTreeOwnerId && currentTreeOwnerId !== currentUser.id);
-            const isCollaborativeEdit = isSavingOtherUserTree && currentTreeEditPermission === 'anyone';
+            const isCollaborativeEdit = isSavingOtherUserTree && (currentTreeEditPermission === 'anyone' || currentTreeEditPermission === 'approved');
             const shouldForcePrivateCopy = !isNewDraft && isSavingOtherUserTree && !isCollaborativeEdit;
 
             if (shouldForcePrivateCopy) {
                 alert('この図は他人の図のため、公開設定や共同編集権限は変更できません。\n自分の図としてコピー保存します。');
                 document.getElementById('cloud-status-select').value = 'private';
                 document.getElementById('cloud-edit-select').value = 'none';
+                document.getElementById('cloud-pin-input').value = '';
+                document.getElementById('pin-input-container').style.display = 'none';
                 document.getElementById('cloud-title-input').value = (currentTreeTitle || '無題のハッセ図') + ' (コピー)';
             } else {
                 document.getElementById('cloud-title-input').value = currentTreeTitle || '無題のハッセ図';
                 document.getElementById('cloud-status-select').value = currentTreeStatus || 'private';
                 document.getElementById('cloud-edit-select').value = currentTreeEditPermission || 'none';
+                document.getElementById('cloud-pin-input').value = currentTreeEditPin || '';
+                
+                if (currentTreeEditPermission === 'approved') {
+                    document.getElementById('pin-input-container').style.display = 'block';
+                } else {
+                    document.getElementById('pin-input-container').style.display = 'none';
+                }
             }
 
             const shouldLockPermissionControls = !isNewDraft && isSavingOtherUserTree;
@@ -545,6 +578,8 @@
                 document.getElementById('cloud-status-select').style.opacity = '1';
                 document.getElementById('cloud-edit-select').disabled = false;
                 document.getElementById('cloud-edit-select').style.opacity = '1';
+                document.getElementById('cloud-pin-input').disabled = false;
+                document.getElementById('cloud-pin-input').style.opacity = '1';
             }
             const copyNote = document.getElementById('cloud-save-copy-note');
             if (shouldForcePrivateCopy) {
@@ -610,7 +645,7 @@
         document.getElementById('search-reload-existing-tags-btn').addEventListener('click', async () => { const btn = document.getElementById('search-reload-existing-tags-btn'); btn.textContent = '取得中...'; await fetchExistingTags(); btn.textContent = '🔄 取得'; renderExistingTagsFor(TAG_PRESET_CONTEXTS.search); renderExistingTagsFor(TAG_PRESET_CONTEXTS.save); });
         document.getElementById('cloud-tags-input').addEventListener('input', renderTagPresets); document.getElementById('explore-search-input').addEventListener('input', () => renderTagPresetsFor(TAG_PRESET_CONTEXTS.search));
 
-        // ★ 保存実行処理（URL・共有ボタンの更新対応）
+        // ★ 保存実行処理
         document.getElementById('cloud-save-confirm-btn').addEventListener('click', async () => {
             const title = document.getElementById('cloud-title-input').value.trim();
             const tags = document.getElementById('cloud-tags-input').value.trim();
@@ -622,17 +657,30 @@
             if (!title) return alert('ファイル名を入力してください。');
 
             const isSavingOtherUserTree = Boolean(currentUser && currentTreeOwnerId && currentTreeOwnerId !== currentUser.id);
-            const isCollaborativeEdit = isSavingOtherUserTree && currentTreeEditPermission === 'anyone';
+            const isCollaborativeEdit = isSavingOtherUserTree && (currentTreeEditPermission === 'anyone' || currentTreeEditPermission === 'approved');
             const forcedStatus = 'private';
             const forcedEditPerm = 'none';
             const targetUserId = isCollaborativeEdit ? currentTreeOwnerId : currentUser.id;
+            
             const finalStatus = isCollaborativeEdit ? (currentTreeStatus || 'private') : (isSavingOtherUserTree ? forcedStatus : document.getElementById('cloud-status-select').value);
             const finalEditPerm = isCollaborativeEdit ? (currentTreeEditPermission || 'none') : (isSavingOtherUserTree ? forcedEditPerm : document.getElementById('cloud-edit-select').value);
+            
+            // ★ PINの保存
+            const finalPin = (finalEditPerm === 'approved' && !isCollaborativeEdit && !isSavingOtherUserTree) ? document.getElementById('cloud-pin-input').value.trim() : currentTreeEditPin;
             const finalTitle = isCollaborativeEdit ? currentTreeTitle : (isSavingOtherUserTree ? await buildCopySaveTitle(title) : title);
 
             if (isCollaborativeEdit && title !== currentTreeTitle) {
                 saveButton.textContent = '保存する';
                 return alert('共同編集可の図は現在のタイトルで保存してください。');
+            }
+
+            // ★ PINバリデーション：承認制のときは必ず4桁の数字を必須にする
+            if (finalEditPerm === 'approved' && !isCollaborativeEdit && !isSavingOtherUserTree) {
+                if (!/^[0-9]{4}$/.test(finalPin)) {
+                    saveButton.textContent = '保存する';
+                    document.getElementById('cloud-pin-input').focus();
+                    return alert('「承認した人のみ編集可」を選んだ場合は、\n編集用PINとして半角数字4桁（0000〜9999）を必ず入力してください。');
+                }
             }
 
             saveButton.textContent = '保存中...';
@@ -641,22 +689,32 @@
             const shouldCreateFreshDraft = isNewDraft || currentTreeOwnerId === null || currentTreeOwnerId === undefined;
             const isOverwrite = !shouldCreateFreshDraft && ((isCollaborativeEdit && currentTreeTitle === title) || (!isSavingOtherUserTree && currentTreeOwnerId === targetUserId && currentTreeTitle === title));
             let result;
+            
             if (isOverwrite) {
                 result = await sb.from('trees').update({
                     graph_data: graphData,
                     status: finalStatus,
                     edit_permission: finalEditPerm,
+                    edit_pin: finalPin, // ★追加
                     tags: tags,
                     author_name: authorName,
                     updated_at: new Date().toISOString()
                 }).eq('user_id', targetUserId).eq('title', finalTitle);
             } else {
+                // 新規作成のとき、かぶりチェック
+                const { data: duplicateCheck } = await sb.from('trees').select('title').eq('user_id', targetUserId).eq('title', finalTitle).maybeSingle();
+                if (duplicateCheck) {
+                    saveButton.textContent = '保存する';
+                    return alert(`「${finalTitle}」というファイル名はすでに使われています。別の名前に変更してください。`);
+                }
+
                 result = await sb.from('trees').insert({
                     user_id: targetUserId,
                     title: finalTitle,
                     graph_data: graphData,
                     status: finalStatus,
                     edit_permission: finalEditPerm,
+                    edit_pin: finalPin, // ★追加
                     tags: tags,
                     author_name: authorName
                 });
@@ -668,6 +726,7 @@
             if (error) { console.error(error); alert('保存に失敗しました: ' + error.message); } else {
                 currentTreeTitle = finalTitle; currentTreeTags = tags;
                 currentTreeStatus = finalStatus; currentTreeEditPermission = finalEditPerm;
+                currentTreeEditPin = finalPin;
                 currentTreeAuthor = authorName; currentTreeOwnerId = targetUserId; isNewDraft = false;
 
                 document.getElementById('current-tree-info').textContent = `📄 ${finalTitle} (by ${currentTreeAuthor})`;
@@ -688,7 +747,6 @@
             }
         });
 
-        // 共有ボタンの処理
         document.getElementById('share-btn').addEventListener('click', () => {
             if (!currentTreeTitle) return alert('共有する図が開かれていません。');
             if (currentTreeStatus === 'private') return alert('この図は「非公開」設定のため共有できません。\nクラウド保存ボタンから「限定公開」または「公開」に変更してください。');
@@ -736,7 +794,6 @@
         document.getElementById('cloud-load-btn').addEventListener('click', async () => {
             if (!currentUser) return alert('ログインしてください。');
             const btn = document.getElementById('cloud-load-btn'); btn.textContent = '取得中...';
-            // edit_permissionも取得
             const { data, error } = await sb.from('trees').select('title, status, tags, edit_permission').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
             btn.textContent = '☁️ クラウド読込';
 
@@ -755,10 +812,11 @@
             openOverlay(); cloudLoadModal.style.display = 'block';
         });
 
-        // ★ 特定の図を読み込む処理
+        // ★ 特定の図を読み込む処理 (PIN認証を追加)
         async function loadSpecificTree(title, userId) {
             const requestVersion = ++treeStateVersion;
-            const baseQuery = sb.from('trees').select('graph_data, status, tags, author_name, edit_permission').eq('user_id', userId).eq('title', title);
+            // edit_pin も取得するように修正
+            const baseQuery = sb.from('trees').select('graph_data, status, tags, author_name, edit_permission, edit_pin').eq('user_id', userId).eq('title', title);
             const query = (currentUser && currentUser.id === userId) ? baseQuery : baseQuery.eq('status', 'public');
             const { data, error } = await query.single();
             if (requestVersion !== treeStateVersion) return;
@@ -769,8 +827,29 @@
                 isNewDraft = false;
                 currentTreeStatus = data.status || 'private';
                 currentTreeEditPermission = data.edit_permission || 'none';
+                currentTreeEditPin = data.edit_pin || ''; // PINをセット
                 currentTreeAuthor = data.author_name || '名無しさん';
-                const canEditThisTree = Boolean(currentUser) && (userId === currentUser.id || currentTreeEditPermission === 'anyone');
+                
+                // ★ 編集権限の判定とPIN認証
+                let canEditThisTree = false;
+                if (currentUser && userId === currentUser.id) {
+                    canEditThisTree = true; // 自分の図
+                } else if (currentUser && currentTreeEditPermission === 'anyone') {
+                    canEditThisTree = true; // 誰でも編集可
+                } else if (currentUser && currentTreeEditPermission === 'approved') {
+                    // 承認制の場合、PIN入力を求める（4桁の数字）
+                    const rawInput = prompt(`【承認制モード】\nこの図を共同編集するには、作者が設定した\n編集用PIN（半角数字4桁）を入力してください。\n\n※閲覧のみの場合は「キャンセル」を押してください。`);
+                    if (rawInput !== null) {
+                        const enteredPin = rawInput.replace(/[^0-9]/g, '').slice(0, 4);
+                        if (/^[0-9]{4}$/.test(enteredPin) && enteredPin === currentTreeEditPin) {
+                            canEditThisTree = true;
+                            alert('PINが確認されました。図を編集・上書き保存できます。');
+                        } else {
+                            alert('PINが正しくありません。閲覧モードで開きます。\n（半角数字4桁で入力してください）');
+                        }
+                    }
+                }
+
                 setReadOnlyUI(!canEditThisTree);
                 if (!canEditThisTree) {
                     document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor}) [閲覧のみ]`;
@@ -779,27 +858,14 @@
                 }
                 document.getElementById('current-tree-info').style.display = 'inline-block';
 
-                // 共有ボタンの表示判定
                 if (currentTreeStatus === 'public' || currentTreeStatus === 'unlisted') {
                     document.getElementById('share-btn').style.display = 'inline-block';
                 } else {
                     document.getElementById('share-btn').style.display = 'none';
                 }
 
-                // 共同編集権限チェック
-                if (currentUser && userId !== currentUser.id) {
-                    if (currentTreeEditPermission === 'none') {
-                        alert('【閲覧モード】\nこの図は読み取り専用です。保存や編集はできません。');
-                    } else if (currentTreeEditPermission === 'approved') {
-                        alert('【承認制モード】\nこの図は承認されたユーザーのみ編集可能です。');
-                    } else if (currentTreeEditPermission === 'anyone') {
-                        alert('【共同編集モード】\nこの図は共同編集可能です。');
-                    }
-                }
-
                 normalizeGraphData(); updateGroupLegend(); closeCloudLoadModal(); closeExploreModal(); closeBookmarkLoadModal();
 
-                // URL更新
                 const newUrl = new URL(window.location.origin + window.location.pathname);
                 newUrl.searchParams.set('uid', userId);
                 newUrl.searchParams.set('t', title);
@@ -819,7 +885,6 @@
             const btn = document.getElementById('explore-execute-btn'); const list = document.getElementById('explore-results-list'); const rawQuery = document.getElementById('explore-search-input').value.trim();
             btn.textContent = '検索中...'; list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">読み込み中...</p>';
 
-            // status が 'public' のものだけ検索する
             const { data, error } = await sb.from('trees').select('user_id, title, status, edit_permission, tags, graph_data, updated_at, author_name').eq('status', 'public').order('updated_at', { ascending: false }).limit(50); 
             btn.textContent = '検索';
 
@@ -1146,7 +1211,6 @@
 
         toolbarPalette.init(); modalPalette.init(); filterPalette.init(); filterPalette.setSelectedColors([]); normalizeGraphData(); updateGroupLegend();
 
-        // ページ読み込み時にURLパラメータがあれば自動で図を開く
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const uid = urlParams.get('uid');
@@ -1156,5 +1220,6 @@
             }
         });
     </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

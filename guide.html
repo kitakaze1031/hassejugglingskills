@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>使い方ガイド - ジャグリング技ロードマップ＆遷移グラフ</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        header p {
+            margin: 10px 0 0 0;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px 40px 20px;
+        }
+
+        section {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            border-left: 5px solid var(--accent-color);
+            padding-left: 10px;
+            margin-top: 0;
+            font-size: 18px;
+        }
+
+        h3 {
+            color: var(--primary-color);
+            font-size: 15px;
+            margin-top: 20px;
+        }
+
+        .mode-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            background-color: #7f8c8d;
+            margin-right: 6px;
+        }
+
+        .mode-view { background-color: var(--accent-color); }
+        .mode-prereq { background-color: #e67e22; }
+        .mode-trans { background-color: var(--success-color); }
+        .mode-delete { background-color: var(--danger-color); }
+
+        ul, ol {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        strong {
+            color: var(--primary-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: var(--primary-color);
+        }
+
+        blockquote {
+            background: #eff6fa;
+            border-left: 4px solid var(--accent-color);
+            margin: 15px 0;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            font-size: 14px;
+        }
+
+        blockquote p {
+            margin: 0;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        /* 閉じるボタン（必要に応じて） */
+        .close-box {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .btn-close {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-close:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>📖 ジャグリング技ロードマップ＆遷移グラフ 使い方ガイド</h1>
+        <p>技のつながりや遷移を可視化して、自分だけの系譜図を作ろう</p>
+    </header>
+
+    <div class="container">
+
+        <section>
+            <h2>💡 ジャグリング技ロードマップ＆遷移グラフとは？</h2>
+            <p> youtubeやXのURLとともに、ジャグリングなどの「技の習得順」や「技から技へのつながり」を、視覚的なネットワーク図（ロードマップ）として整理・共有できるツールです。</p>
+        </section>
+
+        <section>
+            <h2>🛠 基本的な操作手順</h2>
+            
+            <h3>1. 技（ノード）を追加する</h3>
+            <ol>
+                <li>画面上部のツールバーにある入力欄に<strong>グループ名</strong>を入力し、お好みの<strong>色</strong>を選択します。</li>
+                <li><strong>「➕ 技を追加」</strong>ボタンを押すと、画面中央に新しい技が配置されます。</li>
+            </ol>
+
+            <h3>2. 線（エッジ）を引く</h3>
+            <p>ツールバーでモードを切り替えてから操作します。<strong>2つの技を順番にタップ</strong>することで線を引くことができます。</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>モード</th>
+                        <th>線の種類</th>
+                        <th>使い分けのヒント</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="mode-badge mode-prereq">↙️ 順序線</span></td>
+                        <td>グレーの実線（矢印）</td>
+                        <td>「技Aができないと、技Bの練習に進めない」という<strong>習得の依存関係</strong>を表します。</td>
+                    </tr>
+                    <tr>
+                        <td><span class="mode-badge mode-trans">🔄 遷移線</span></td>
+                        <td>カラーの点線（矢印）</td>
+                        <td>ループ技Aからループ技Bへ繋がる<strong>遷移技（トラジション）</strong>を表します。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>3. 技を見る・動画を開く</h3>
+            <ul>
+                <li><span class="mode-badge mode-view">👆 閲覧・リンク</span> モードのときに、技を<strong>ワンタップ</strong>すると、登録されているYouTubeなどの動画リンクへすぐに飛ぶことができます。</li>
+            </ul>
+
+            <h3>4. 技や線を編集する</h3>
+            <ul>
+                <li><span class="mode-badge mode-view">👆 閲覧・リンク</span> モードのときに、技や遷移線を<strong>ダブルタップ</strong>すると編集画面が開きます。</li>
+                <li>技名、YouTubeなどの動画URL、所属グループ（複数選択可）をいつでも変更できます。</li>
+                <li>1本の遷移線の中に、複数のルート（入り方など）をまとめて登録することも可能です。</li>
+            </ul>
+
+            <h3>5. データを消去する</h3>
+            <ul>
+                <li><span class="mode-badge mode-delete">🗑 タッチ消去</span> モードに切り替え、消したい技や線をタップすると削除できます。</li>
+                <li>間違えて消してしまった場合は、すかさず<strong>「↩️ 戻る」</strong>ボタンを押せば元に戻ります。</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>🌟 便利な機能</h2>
+            <ul>
+                <li><strong>✨ 整列:</strong> 複雑に絡み合った順序線を、依存関係の順（上から下、または下から上）に沿って綺麗に自動配置します。</li>
+                <li><strong>🔍 絞り込み:</strong> 技名での部分一致検索はもちろん、「特定のグループ（色）だけ」や「最近追加した期間」で図をフィルタリングできます。右下の「グループ表示」をタップすると、その色のアイテム一覧をサクッと確認できます。</li>
+                <li><strong>💾 ローカル保存/読込:</strong> クラウドを使わず、手元の端末にJSONファイルとして図のデータを保存・復元できます。</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>🌐 クラウド機能とみんなの図（要ログイン）</h2>
+            <p>Googleアカウントでログインすると、作成したロードマップをクラウドに保存したり、ジャグラーに公開・共有できるようになります。</p>
+
+            <h3>🔍 みんなの図を検索する</h3>
+            <p>他のユーザーが「公開」設定にしているロードマップを探して閲覧することができます。新しい技の練習ルートや、思いがけない遷移（トランジション）のアイデアを発見するのにとても便利です。</p>
+           
+            <h3>🔑 公開範囲と共同編集の組み合わせ</h3>
+            <ul>
+                <li><strong>公開範囲:</strong> 「👁 公開（誰でも探せる）」「🔗 限定公開（URLを知っている人のみ）」「🔒 非公開（自分だけ）」から選べます。</li>
+                <li><strong>共同編集:</strong> 「❌ 編集不可（自分だけ）」「👥 承認した人のみ（要PIN）」「✅ 誰でも編集可」でセキュリティをコントロールできます。</li>
+            </ul>
+        </section>
+
+        <div class="close-box">
+            <button class="btn-close" onclick="window.close();">ガイドを閉じる</button>
+        </div>
+
+        <div class="footer">
+            <p>ジャグリング技ロードマップ＆遷移グラフ </p>
+        </div>
+    </div>
+
+</body>
+</html>

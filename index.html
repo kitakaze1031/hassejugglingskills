@@ -459,13 +459,14 @@
             if (!confirm('現在の図を閉じて、新しい図を作成しますか？（保存していない内容は消えます）')) return;
             treeStateVersion += 1;
 
-            // グラフを完全にクリア
+            // 1. グラフを完全にクリア＆裏側のグループ名データも確実に消去 ★修正ポイント
             if (typeof cy !== 'undefined') {
                 cy.elements().remove();
+                cy.data('colorMap', {}); 
                 try { cy.css({}); } catch (e) { /* ignore */ }
             }
 
-            // 内部状態を初期化
+            // 2. 内部状態を初期化
             undoStack = [];
             currentTreeTitle = '';
             currentTreeStatus = 'private';
@@ -476,7 +477,7 @@
             isReadOnlyTree = false;
             isNewDraft = true;
 
-            // UI側も安全に初期化（要素が存在するかチェック）
+            // 3. UI側も安全に初期化（要素が存在するかチェック）
             setReadOnlyUI(false);
             updateAuthUI();
 
@@ -488,12 +489,16 @@
 
             const shareBtn = document.getElementById('share-btn'); if (shareBtn) shareBtn.style.display = 'none';
 
-            // クラウド保存ダイアログ周りの入力をリセット
+            // 4. クラウド保存ダイアログ周りの入力をリセット
             const cloudTitle = document.getElementById('cloud-title-input'); if (cloudTitle) cloudTitle.value = '';
             const cloudAuthor = document.getElementById('cloud-author-input'); if (cloudAuthor) cloudAuthor.value = '';
             const cloudTags = document.getElementById('cloud-tags-input'); if (cloudTags) cloudTags.value = '';
             const statusSelect = document.getElementById('cloud-status-select'); if (statusSelect) { statusSelect.value = 'private'; statusSelect.disabled = false; statusSelect.style.opacity = '1'; }
             const editSelect = document.getElementById('cloud-edit-select'); if (editSelect) { editSelect.value = 'none'; editSelect.disabled = false; editSelect.style.opacity = '1'; }
+
+            // 5. URLのパラメータ（?uid=...&t=...）を消去して完全に新規にする ★修正ポイント
+            const newUrl = new URL(window.location.origin + window.location.pathname);
+            window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
 
             const cloudSaveBtn = document.getElementById('cloud-save-btn'); if (cloudSaveBtn) { cloudSaveBtn.disabled = false; cloudSaveBtn.style.opacity = '1'; cloudSaveBtn.style.cursor = 'pointer'; }
 

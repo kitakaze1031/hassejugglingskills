@@ -8,8 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        html,
-        body {
+        html, body {
             margin: 0;
             padding: 0;
             font-family: sans-serif;
@@ -36,17 +35,10 @@
             align-items: center;
         }
 
-        #toolbar::-webkit-scrollbar {
-            height: 4px;
-        }
+        #toolbar::-webkit-scrollbar { height: 4px; }
+        #toolbar::-webkit-scrollbar-thumb { background: #7f8c8d; border-radius: 4px; }
 
-        #toolbar::-webkit-scrollbar-thumb {
-            background: #7f8c8d;
-            border-radius: 4px;
-        }
-
-        button,
-        select {
+        button, select {
             flex-shrink: 0;
             padding: 10px 14px;
             background-color: #34495e;
@@ -60,59 +52,17 @@
             touch-action: manipulation;
         }
 
-        button.active {
-            background-color: #3498db;
-            box-shadow: 0 0 8px #3498db;
-        }
+        button.active { background-color: #3498db; box-shadow: 0 0 8px #3498db; }
+        button.active-delete { background-color: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
+        button.active-prereq { background-color: #e67e22; box-shadow: 0 0 8px #e67e22; }
+        button.active-trans { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+        .btn-io { background-color: #8e44ad; }
+        .btn-explore { background-color: #9b59b6; }
+        .btn-auth { background-color: #f39c12; color: white; }
+        .btn-bookmark { background-color: #f39c12; color: white; }
 
-        button.active-delete {
-            background-color: #e74c3c;
-            box-shadow: 0 0 8px #e74c3c;
-        }
-
-        button.active-prereq {
-            background-color: #e67e22;
-            box-shadow: 0 0 8px #e67e22;
-        }
-
-        button.active-trans {
-            background-color: #2ecc71;
-            box-shadow: 0 0 8px #2ecc71;
-        }
-
-        .btn-io {
-            background-color: #8e44ad;
-        }
-
-        .btn-explore {
-            background-color: #9b59b6;
-        }
-
-        .btn-auth {
-            background-color: #f39c12;
-            color: white;
-        }
-
-        .btn-bookmark {
-            background-color: #f39c12;
-            color: white;
-        }
-
-        #user-info {
-            color: white;
-            font-size: 12px;
-            display: none;
-            margin-left: 8px;
-        }
-
-        #current-tree-info {
-            color: #f1c40f;
-            font-size: 13px;
-            font-weight: bold;
-            display: none;
-            margin-left: 10px;
-            margin-right: 10px;
-        }
+        #user-info { color: white; font-size: 12px; display: none; margin-left: 8px; }
+        #current-tree-info { color: #f1c40f; font-size: 13px; font-weight: bold; display: none; margin-left: 10px; margin-right: 10px; }
 
         .add-group {
             display: inline-flex;
@@ -133,348 +83,92 @@
             border-radius: 6px;
         }
 
-        .color-palette {
-            display: grid;
-            grid-template-columns: repeat(10, 22px);
-            gap: 4px;
-        }
+        .color-palette { display: grid; grid-template-columns: repeat(10, 22px); gap: 4px; }
 
         .color-swatch {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            cursor: pointer;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-sizing: border-box;
-            transition: transform 0.1s;
+            width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.4); box-sizing: border-box; transition: transform 0.1s;
         }
-
-        .color-swatch:active {
-            transform: scale(0.85);
-        }
-
-        .color-swatch.selected {
-            border: 2px solid #fff;
-            box-shadow: 0 0 0 2px #3498db;
-        }
+        .color-swatch:active { transform: scale(0.85); }
+        .color-swatch.selected { border: 2px solid #fff; box-shadow: 0 0 0 2px #3498db; }
 
         input[type="color"] {
-            width: 32px;
-            height: 32px;
-            padding: 0;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            background: transparent;
-            flex-shrink: 0;
+            width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px;
+            cursor: pointer; background: transparent; flex-shrink: 0;
         }
 
-        input[type="text"],
-        input[type="url"],
-        input[type="date"],
-        textarea,
-        select {
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid #cfd8dc;
-            border-radius: 8px;
-            padding: 10px;
-            font-size: 14px;
+        input[type="text"], input[type="url"], input[type="date"], textarea, select {
+            width: 100%; box-sizing: border-box; border: 1px solid #cfd8dc; border-radius: 8px; padding: 10px; font-size: 14px;
         }
 
-        textarea {
-            min-height: 90px;
-            resize: vertical;
-        }
+        textarea { min-height: 90px; resize: vertical; }
 
-        #group-name-input {
-            width: 150px;
-            min-width: 150px;
-            background: #ffffff;
-            color: #2c3e50;
-        }
+        #group-name-input { width: 150px; min-width: 150px; background: #ffffff; color: #2c3e50; }
 
-        #cy-wrap {
-            position: relative;
-            flex: 1;
-            min-height: 0;
-        }
-
-        #cy {
-            width: 100%;
-            height: 100%;
-        }
+        #cy-wrap { position: relative; flex: 1; min-height: 0; }
+        #cy { width: 100%; height: 100%; }
 
         #group-legend {
-            position: absolute;
-            right: 12px;
-            bottom: 12px;
-            z-index: 20;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            padding: 10px 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-            min-width: 170px;
-            max-width: min(70vw, 260px);
-            font-size: 13px;
-            color: #2c3e50;
+            position: absolute; right: 12px; bottom: 12px; z-index: 20;
+            background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 10px 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); min-width: 170px; max-width: min(70vw, 260px); font-size: 13px; color: #2c3e50;
         }
+        #group-legend h4 { margin: 0 0 8px 0; font-size: 13px; }
+        #group-legend-list { display: flex; flex-direction: column; gap: 2px; }
 
-        #group-legend h4 {
-            margin: 0 0 8px 0;
-            font-size: 13px;
-        }
-
-        #group-legend-list {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            line-height: 1.3;
-            padding: 6px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .legend-item:hover {
-            background-color: rgba(0, 0, 0, 0.08);
-        }
-
-        .legend-swatch {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            border: 1px solid rgba(0, 0, 0, 0.15);
-            flex-shrink: 0;
-        }
-
-        .legend-empty {
-            color: #7f8c8d;
-            padding: 4px;
-        }
+        .legend-item { display: flex; align-items: center; gap: 8px; line-height: 1.3; padding: 6px; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
+        .legend-item:hover { background-color: rgba(0, 0, 0, 0.08); }
+        .legend-swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.15); flex-shrink: 0; }
+        .legend-empty { color: #7f8c8d; padding: 4px; }
 
         #modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 999;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 999;
         }
 
         .floating-modal {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 14px;
-            width: 88%;
-            max-width: 380px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 20px; border-radius: 14px; width: 88%; max-width: 380px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); z-index: 1000;
         }
 
-        .floating-modal h3 {
-            margin: 0 0 15px 0;
-            font-size: 16px;
-            color: #333;
-            text-align: center;
-        }
-
-        .modal-field {
-            margin-bottom: 12px;
-        }
-
-        .modal-field label {
-            display: block;
-            font-size: 12px;
-            color: #555;
-            margin-bottom: 6px;
-            font-weight: bold;
-        }
-
+        .floating-modal h3 { margin: 0 0 15px 0; font-size: 16px; color: #333; text-align: center; }
+        .modal-field { margin-bottom: 12px; }
+        .modal-field label { display: block; font-size: 12px; color: #555; margin-bottom: 6px; font-weight: bold; }
+        
         .modal-btn {
-            display: block;
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 10px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            text-decoration: none;
-            text-align: center;
-            box-sizing: border-box;
-            cursor: pointer;
+            display: block; width: 100%; padding: 12px; margin-bottom: 10px;
+            background-color: #3498db; color: white; border: none; border-radius: 8px;
+            font-size: 14px; text-decoration: none; text-align: center; box-sizing: border-box; cursor: pointer;
         }
-
-        .modal-btn.disabled {
-            background-color: #bdc3c7;
-            pointer-events: none;
-        }
-
-        .modal-btn.secondary {
-            background-color: #16a085;
-        }
-
-        .close-btn {
-            background-color: #e74c3c;
-            margin-top: 15px;
-            margin-bottom: 0;
-        }
-
-        .hint-text {
-            margin: 4px 0 0 0;
-            font-size: 11px;
-            color: #607d8b;
-            line-height: 1.4;
-        }
-
+        .modal-btn.disabled { background-color: #bdc3c7; pointer-events: none; }
+        .modal-btn.secondary { background-color: #16a085; }
+        .close-btn { background-color: #e74c3c; margin-top: 15px; margin-bottom: 0; }
+        .hint-text { margin: 4px 0 0 0; font-size: 11px; color: #607d8b; line-height: 1.4; }
+        
         .search-result-item {
-            padding: 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            background: #fafafa;
-            cursor: pointer;
-            transition: 0.2s;
+            padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; background: #fafafa; cursor: pointer; transition: 0.2s;
         }
+        .search-result-item:hover { background: #f0f0f0; border-color: #3498db; }
+        .search-result-title { font-weight: bold; font-size: 14px; color: #2c3e50; margin-bottom: 4px; }
+        .search-result-tags { font-size: 11px; color: #2980b9; margin-bottom: 4px; }
+        .search-result-stats { font-size: 11px; color: #7f8c8d; }
 
-        .search-result-item:hover {
-            background: #f0f0f0;
-            border-color: #3498db;
-        }
-
-        .search-result-title {
-            font-weight: bold;
-            font-size: 14px;
-            color: #2c3e50;
-            margin-bottom: 4px;
-        }
-
-        .search-result-tags {
-            font-size: 11px;
-            color: #2980b9;
-            margin-bottom: 4px;
-        }
-
-        .search-result-stats {
-            font-size: 11px;
-            color: #7f8c8d;
-        }
-
-        .tag-preset-section {
-            margin-top: 8px;
-        }
-
-        .tag-preset-title {
-            font-size: 11px;
-            color: #555;
-            font-weight: bold;
-            margin: 8px 0 4px 0;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .tag-preset-title .count-badge {
-            background: #bdc3c7;
-            color: #fff;
-            font-size: 10px;
-            padding: 1px 6px;
-            border-radius: 8px;
-            font-weight: normal;
-        }
-
+        .tag-preset-section { margin-top: 8px; }
+        .tag-preset-title { font-size: 11px; color: #555; font-weight: bold; margin: 8px 0 4px 0; display: flex; align-items: center; gap: 6px; }
+        .tag-preset-title .count-badge { background: #bdc3c7; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 8px; font-weight: normal; }
         .tag-chip-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            max-height: 110px;
-            overflow-y: auto;
-            padding: 6px;
-            background: #f4f7f6;
-            border-radius: 6px;
-            border: 1px solid #e0e0e0;
+            display: flex; flex-wrap: wrap; gap: 5px; max-height: 110px; overflow-y: auto; padding: 6px; background: #f4f7f6; border-radius: 6px; border: 1px solid #e0e0e0;
         }
-
         .tag-chip {
-            display: inline-block;
-            padding: 5px 10px;
-            background: #fff;
-            color: #2980b9;
-            border: 1px solid #b3d4ec;
-            border-radius: 14px;
-            font-size: 12px;
-            cursor: pointer;
-            user-select: none;
-            transition: 0.15s;
+            display: inline-block; padding: 5px 10px; background: #fff; color: #2980b9; border: 1px solid #b3d4ec; border-radius: 14px; font-size: 12px; cursor: pointer; user-select: none; transition: 0.15s;
         }
-
-        .tag-chip:hover {
-            background: #2980b9;
-            color: #fff;
-            border-color: #2980b9;
-        }
-
-        .tag-chip.purpose {
-            color: #c0392b;
-            border-color: #f1b8b1;
-        }
-
-        .tag-chip.purpose:hover {
-            background: #c0392b;
-            color: #fff;
-            border-color: #c0392b;
-        }
-
-        .tag-chip.existing {
-            color: #16a085;
-            border-color: #a3dccd;
-        }
-
-        .tag-chip.existing:hover {
-            background: #16a085;
-            color: #fff;
-            border-color: #16a085;
-        }
-
-        .tag-chip.active {
-            background: #2c3e50 !important;
-            color: #fff !important;
-            border-color: #2c3e50 !important;
-        }
-
-        .tag-toggle-btn {
-            background: none;
-            border: none;
-            color: #2980b9;
-            font-size: 12px;
-            cursor: pointer;
-            padding: 2px 6px;
-            text-decoration: underline;
-            margin-left: auto;
-        }
-
-        .tag-empty-msg {
-            font-size: 11px;
-            color: #95a5a6;
-            padding: 6px;
-            text-align: center;
-            width: 100%;
-        }
+        .tag-chip:hover { background: #2980b9; color: #fff; border-color: #2980b9; }
+        .tag-chip.purpose { color: #c0392b; border-color: #f1b8b1; }
+        .tag-chip.purpose:hover { background: #c0392b; color: #fff; border-color: #c0392b; }
+        .tag-chip.existing { color: #16a085; border-color: #a3dccd; }
+        .tag-chip.existing:hover { background: #16a085; color: #fff; border-color: #16a085; }
+        .tag-chip.active { background: #2c3e50!important; color: #fff!important; border-color: #2c3e50!important; }
+        .tag-toggle-btn { background: none; border: none; color: #2980b9; font-size: 12px; cursor: pointer; padding: 2px 6px; text-decoration: underline; margin-left: auto; }
+        .tag-empty-msg { font-size: 11px; color: #95a5a6; padding: 6px; text-align: center; width: 100%; }
     </style>
 </head>
 
@@ -494,21 +188,19 @@
         <button id="mode-prereq-btn">↙️ 前提線を引く</button>
         <button id="mode-trans-btn">🔄 遷移線を引く</button>
         <button id="mode-delete-btn">🗑 タッチ消去</button>
-
+        
         <button id="filter-btn">🔍 絞り込み</button>
         <button id="undo-btn">↩️ 戻る</button>
         <button id="arrange-btn">✨ 整列</button>
-
+        
         <button id="explore-btn" class="btn-explore">🌐 みんなの図を探す</button>
-
-        <button id="share-btn" class="btn-explore">🔗 共有</button>
+        <button id="share-btn" class="btn-explore" style="display: none;">🔗 共有</button>
 
         <button id="cloud-save-btn" class="btn-io" style="display: none;">☁️ クラウド保存</button>
         <button id="cloud-load-btn" class="btn-io" style="display: none;">☁️ クラウド読込</button>
         <button id="bookmark-list-btn" class="btn-bookmark" style="display: none;">🔖 お気に入り</button>
         <button id="local-save-btn" class="btn-io">💾 ローカル保存</button>
-        <button id="local-load-btn" class="btn-io" onclick="document.getElementById('file-input').click()">📂
-            ローカル読込</button>
+        <button id="local-load-btn" class="btn-io" onclick="document.getElementById('file-input').click()">📂 ローカル読込</button>
         <input type="file" id="file-input" style="display: none;" accept=".json">
 
         <span id="current-tree-info"></span>
@@ -536,121 +228,93 @@
 
     <div id="filter-modal" class="floating-modal" style="max-height: 85vh; overflow-y: auto;">
         <h3>現在の図を絞り込み</h3>
-        <div class="modal-field"><label for="filter-name">名前 (部分一致)</label><input type="text" id="filter-name"
-                placeholder="技名・遷移名を入力"></div>
+        <div class="modal-field"><label for="filter-name">名前 (部分一致)</label><input type="text" id="filter-name" placeholder="技名・遷移名を入力"></div>
         <div class="modal-field">
             <label>追加期間</label>
             <div style="display:flex; gap:8px; align-items:center;">
-                <input type="date" id="filter-date-start"><span style="color:#555; font-size:12px;">〜</span><input
-                    type="date" id="filter-date-end">
+                <input type="date" id="filter-date-start"><span style="color:#555; font-size:12px;">〜</span><input type="date" id="filter-date-end">
             </div>
         </div>
         <div class="modal-field">
             <label>グループ（色）</label>
-            <div class="color-palette-container" style="background: transparent; padding: 0; justify-content: center;">
-                <div id="filter-color-palette" class="color-palette"
-                    style="grid-template-columns: repeat(10, 22px); gap: 4px;"></div>
-            </div>
+            <div class="color-palette-container" style="background: transparent; padding: 0; justify-content: center;"><div id="filter-color-palette" class="color-palette" style="grid-template-columns: repeat(10, 22px); gap: 4px;"></div></div>
         </div>
         <button id="apply-filter-btn" class="modal-btn">絞り込む</button>
         <button id="reset-filter-btn" class="modal-btn secondary">条件をリセット</button>
         <button class="modal-btn close-btn" onclick="closeFilterModal()">閉じる</button>
     </div>
 
-    <div id="explore-modal" class="floating-modal"
-        style="max-height: 90vh; overflow-y: auto; max-width: 480px; width: 95%;">
+    <div id="explore-modal" class="floating-modal" style="max-height: 90vh; overflow-y: auto; max-width: 480px; width: 95%;">
         <h3>🌐 みんなのハッセ図を探す</h3>
         <p class="hint-text" style="text-align:center; margin-bottom:12px;">公開されている他の人のハッセ図を検索できます。</p>
         <div class="modal-field" style="display:flex; gap:8px;">
             <input type="text" id="explore-search-input" placeholder="タグ(#技名)、タイトル、図の中の技名で検索..." style="flex:1;">
-            <button id="explore-execute-btn" class="modal-btn"
-                style="width:auto; margin:0; padding:10px 16px;">検索</button>
+            <button id="explore-execute-btn" class="modal-btn" style="width:auto; margin:0; padding:10px 16px;">検索</button>
         </div>
         <div class="modal-field" style="margin-top:4px;">
             <p class="hint-text" style="margin:0 0 6px 0;">下のチップをタップで検索ワードに追加/解除できます（複数選択でAND検索）。</p>
+            <div class="tag-preset-section"><div class="tag-preset-title">🎪 道具から選ぶ</div><div id="search-tag-preset-tools" class="tag-chip-container"></div></div>
+            <div class="tag-preset-section"><div class="tag-preset-title">🎯 目的から選ぶ</div><div id="search-tag-preset-purposes" class="tag-chip-container"></div></div>
             <div class="tag-preset-section">
-                <div class="tag-preset-title">🎪 道具から選ぶ</div>
-                <div id="search-tag-preset-tools" class="tag-chip-container"></div>
-            </div>
-            <div class="tag-preset-section">
-                <div class="tag-preset-title">🎯 目的から選ぶ</div>
-                <div id="search-tag-preset-purposes" class="tag-chip-container"></div>
-            </div>
-            <div class="tag-preset-section">
-                <div class="tag-preset-title"><span>📚 みんなが使っているタグ</span><span id="search-existing-tags-count"
-                        class="count-badge">-</span><button type="button" id="search-reload-existing-tags-btn"
-                        class="tag-toggle-btn">🔄 取得</button></div>
-                <div id="search-tag-preset-existing" class="tag-chip-container">
-                    <div class="tag-empty-msg">「🔄 取得」ボタンを押すと既存のタグ一覧を表示します。</div>
-                </div>
+                <div class="tag-preset-title"><span>📚 みんなが使っているタグ</span><span id="search-existing-tags-count" class="count-badge">-</span><button type="button" id="search-reload-existing-tags-btn" class="tag-toggle-btn">🔄 取得</button></div>
+                <div id="search-tag-preset-existing" class="tag-chip-container"><div class="tag-empty-msg">「🔄 取得」ボタンを押すと既存のタグ一覧を表示します。</div></div>
             </div>
         </div>
-        <div id="explore-results-list"
-            style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px; max-height: 40vh; overflow-y: auto;">
-        </div>
+        <div id="explore-results-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px; max-height: 40vh; overflow-y: auto;"></div>
         <button class="modal-btn close-btn" onclick="closeExploreModal()">閉じる</button>
     </div>
 
     <div id="cloud-save-modal" class="floating-modal">
         <h3>クラウドに保存</h3>
-        <div class="modal-field"><label for="cloud-title-input">ファイル名</label><input type="text" id="cloud-title-input"
-                placeholder="ファイル名を入力"></div>
-        <div class="modal-field"><label for="cloud-author-input">作成者名</label><input type="text" id="cloud-author-input"
-                placeholder="あなたの名前を入力（空欄なら名無しさん）"></div>
+        <div class="modal-field"><label for="cloud-title-input">ファイル名</label><input type="text" id="cloud-title-input" placeholder="ファイル名を入力"></div>
+        <div class="modal-field"><label for="cloud-author-input">作成者名</label><input type="text" id="cloud-author-input" placeholder="あなたの名前を入力（空欄なら名無しさん）"></div>
         <div class="modal-field">
-            <label for="cloud-tags-input">検索用タグ (任意)</label><input type="text" id="cloud-tags-input"
-                placeholder="例: #ディアボロ #初心者技まとめ">
+            <label for="cloud-tags-input">検索用タグ (任意)</label><input type="text" id="cloud-tags-input" placeholder="例: #ディアボロ #初心者技まとめ">
             <p class="hint-text">スペース区切りで複数入力できます。下のチップをタップで追加/解除。</p>
+            <div class="tag-preset-section"><div class="tag-preset-title">🎪 道具から選ぶ</div><div id="tag-preset-tools" class="tag-chip-container"></div></div>
+            <div class="tag-preset-section"><div class="tag-preset-title">🎯 目的から選ぶ</div><div id="tag-preset-purposes" class="tag-chip-container"></div></div>
             <div class="tag-preset-section">
-                <div class="tag-preset-title">🎪 道具から選ぶ</div>
-                <div id="tag-preset-tools" class="tag-chip-container"></div>
-            </div>
-            <div class="tag-preset-section">
-                <div class="tag-preset-title">🎯 目的から選ぶ</div>
-                <div id="tag-preset-purposes" class="tag-chip-container"></div>
-            </div>
-            <div class="tag-preset-section">
-                <div class="tag-preset-title"><span>📚 みんなが使っているタグ</span><span id="existing-tags-count"
-                        class="count-badge">-</span><button type="button" id="reload-existing-tags-btn"
-                        class="tag-toggle-btn">🔄 取得</button></div>
-                <div id="tag-preset-existing" class="tag-chip-container">
-                    <div class="tag-empty-msg">「🔄 取得」ボタンを押すと既存のタグ一覧を表示します。</div>
-                </div>
+                <div class="tag-preset-title"><span>📚 みんなが使っているタグ</span><span id="existing-tags-count" class="count-badge">-</span><button type="button" id="reload-existing-tags-btn" class="tag-toggle-btn">🔄 取得</button></div>
+                <div id="tag-preset-existing" class="tag-chip-container"><div class="tag-empty-msg">「🔄 取得」ボタンを押すと既存のタグ一覧を表示します。</div></div>
             </div>
         </div>
+        
         <div class="modal-field">
-            <label for="cloud-status-select">公開設定</label>
+            <label for="cloud-status-select">👁 公開範囲（閲覧権限）</label>
             <select id="cloud-status-select" style="color: #2c3e50; font-weight: bold; background-color: #fff;">
-                <option value="private">🔒 非公開 (自分だけ)</option>
-                <option value="unlisted">🔗 限定公開 (リンクを知っている人のみ・編集不可)</option>
-                <option value="public_readonly">👁 公開 (誰でも閲覧可・編集不可)</option>
-                <option value="public_writable">✏️ 共同編集 (誰でも閲覧・編集可)</option>
+                <option value="public">👁 公開 (みんなの図に表示・URL共有可)</option>
+                <option value="unlisted">🔗 限定公開 (みんなの図に非表示・URL共有可)</option>
+                <option value="private" selected>🔒 非公開 (自分だけ・URL共有不可)</option>
             </select>
         </div>
+        <div class="modal-field">
+            <label for="cloud-edit-select">✏️ 共同編集権限</label>
+            <select id="cloud-edit-select" style="color: #2c3e50; font-weight: bold; background-color: #fff;">
+                <option value="anyone">✅ 誰でも共同編集可</option>
+                <option value="approved">👥 承認した人のみ可</option>
+                <option value="none" selected>❌ 共同編集不可 (自分だけ)</option>
+            </select>
+        </div>
+
         <button id="cloud-save-confirm-btn" class="modal-btn">保存する</button>
         <button class="modal-btn close-btn" onclick="closeCloudSaveModal()">閉じる</button>
     </div>
 
-    <div id="cloud-load-modal" class="floating-modal"
-        style="max-height: 80vh; overflow-y: auto; max-width: 420px; width: 92%;">
+    <div id="cloud-load-modal" class="floating-modal" style="max-height: 80vh; overflow-y: auto; max-width: 420px; width: 92%;">
         <h3>クラウドから読み込み</h3>
         <div id="cloud-load-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;"></div>
         <button class="modal-btn close-btn" onclick="closeCloudLoadModal()">閉じる</button>
     </div>
 
-    <div id="bookmark-load-modal" class="floating-modal"
-        style="max-height: 80vh; overflow-y: auto; max-width: 420px; width: 92%;">
+    <div id="bookmark-load-modal" class="floating-modal" style="max-height: 80vh; overflow-y: auto; max-width: 420px; width: 92%;">
         <h3>⭐ お気に入り一覧</h3>
-        <div id="bookmark-load-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
-        </div>
+        <div id="bookmark-load-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;"></div>
         <button class="modal-btn close-btn" onclick="closeBookmarkLoadModal()">閉じる</button>
     </div>
 
-    <div id="group-list-modal" class="floating-modal"
-        style="max-height: 80vh; overflow-y: auto; max-width: 420px; width: 92%;">
+    <div id="group-list-modal" class="floating-modal" style="max-height: 80vh; overflow-y: auto; max-width: 420px; width: 92%;">
         <h3 id="group-list-title">グループ一覧</h3>
-        <div id="group-list-content" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
-        </div>
+        <div id="group-list-content" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;"></div>
         <button class="modal-btn close-btn" onclick="closeGroupListModal()">閉じる</button>
     </div>
 
@@ -660,21 +324,15 @@
         <div class="modal-field"><label for="node-url-input">動画URL</label><input type="url" id="node-url-input"></div>
         <div class="modal-field">
             <label>所属グループ（色を複数タップで選択可）</label>
-            <div class="color-palette-container"
-                style="background: transparent; padding: 0; justify-content: center; margin-bottom: 8px;">
-                <div id="modal-color-palette" class="color-palette"
-                    style="grid-template-columns: repeat(5, 28px); gap: 10px;"></div>
-            </div>
+            <div class="color-palette-container" style="background: transparent; padding: 0; justify-content: center; margin-bottom: 8px;"><div id="modal-color-palette" class="color-palette" style="grid-template-columns: repeat(5, 28px); gap: 10px;"></div></div>
             <div style="text-align: center;"><input type="color" id="node-color-input" value="#3498db"></div>
         </div>
-        <div class="modal-field"><label for="node-group-input">グループ名</label><input type="text" id="node-group-input">
-        </div>
+        <div class="modal-field"><label for="node-group-input">グループ名</label><input type="text" id="node-group-input"></div>
         <button id="node-save-btn" class="modal-btn">保存</button>
         <button class="modal-btn close-btn" onclick="closeNodeEditor()">閉じる</button>
     </div>
 
-    <div id="trans-editor" class="floating-modal"
-        style="max-height: 85vh; overflow-y: auto; max-width: 420px; width: 92%;">
+    <div id="trans-editor" class="floating-modal" style="max-height: 85vh; overflow-y: auto; max-width: 420px; width: 92%;">
         <h3>遷移線を編集</h3>
         <div id="trans-inputs-container"></div>
         <button id="trans-save-btn" class="modal-btn" style="background-color: #2ecc71;">すべての変更を保存</button>
@@ -686,12 +344,12 @@
             if (ele.data('createdAt')) return ele.data('createdAt');
             const parts = ele.id().split('_');
             if (parts.length > 1) { const ts = parseInt(parts[1], 10); if (!isNaN(ts) && ts > 1000000000000) return ts; }
-            return 0;
+            return 0; 
         }
 
         function formatDate(ts) {
             if (!ts) return '日時不明'; const d = new Date(ts);
-            return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
         }
 
         const SUPABASE_URL = 'https://fqipmvzalmfyywshtvoe.supabase.co';
@@ -700,9 +358,11 @@
 
         let currentUser = null;
         let currentTreeTitle = '';
-        let currentTreeStatus = 'private';
+        let currentTreeStatus = 'private'; // visibility (public, unlisted, private)
+        let currentTreeEditPermission = 'none'; // edit_permission (anyone, approved, none)
         let currentTreeTags = '';
-        let currentTreeAuthor = '';
+        let currentTreeAuthor = ''; 
+        let currentTreeOwnerId = null; // 現在開いている図の作成者ID
 
         sb.auth.onAuthStateChange((event, session) => {
             currentUser = session?.user || null;
@@ -731,18 +391,29 @@
 
         document.getElementById('cloud-save-btn').addEventListener('click', () => {
             if (!currentUser) return alert('ログインしてください。');
-            document.getElementById('cloud-title-input').value = currentTreeTitle || '無題のハッセ図';
-            document.getElementById('cloud-tags-input').value = currentTreeTags || '';
-            document.getElementById('cloud-status-select').value = currentTreeStatus || 'private';
+            
+            // 自分の図じゃないのに上書きしようとした場合の警告
+            if (currentTreeOwnerId && currentTreeOwnerId !== currentUser.id && currentTreeEditPermission !== 'anyone') {
+                alert('この図は閲覧専用または承認制のため、上書き保存できません。\n別のファイル名にして「自分の図」として保存してください。');
+                // 別名保存を促すため、ステータス等をリセット
+                document.getElementById('cloud-status-select').value = 'private';
+                document.getElementById('cloud-edit-select').value = 'none';
+                document.getElementById('cloud-title-input').value = currentTreeTitle + ' (コピー)';
+            } else {
+                document.getElementById('cloud-title-input').value = currentTreeTitle || '無題のハッセ図';
+                document.getElementById('cloud-status-select').value = currentTreeStatus || 'private';
+                document.getElementById('cloud-edit-select').value = currentTreeEditPermission || 'none';
+            }
 
+            document.getElementById('cloud-tags-input').value = currentTreeTags || '';
             const defaultAuthor = currentTreeAuthor || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
             document.getElementById('cloud-author-input').value = defaultAuthor;
 
             renderTagPresets(); openOverlay(); document.getElementById('cloud-save-modal').style.display = 'block';
         });
 
-        const PRESET_TOOLS = ['ボール', 'シガーボックス', 'デビルスティック', 'フラワースティック', 'ディアボロ', 'リング', 'クラブ', 'エイトリング', 'スタッフ', 'ポイ', '皿', 'コンタクトボール', 'シェイカーカップ', 'けん玉', 'ダポクト', 'スリンキー', 'フロウワンド', 'ヨーヨー'];
-        const PRESET_PURPOSES = ['初心者技まとめ', '布教用', '中級者向け', '上級者向け', '練習中', '完成形', '大会用', 'ネタ技', '基礎技', 'チュートリアル'];
+        const PRESET_TOOLS = [ 'ボール', 'シガーボックス', 'デビルスティック', 'フラワースティック', 'ディアボロ', 'リング', 'クラブ', 'エイトリング', 'スタッフ', 'ポイ', '皿', 'コンタクトボール', 'シェイカーカップ', 'けん玉', 'ダポクト', 'スリンキー', 'フロウワンド', 'ヨーヨー' ];
+        const PRESET_PURPOSES = [ '初心者技まとめ', '布教用', '中級者向け', '上級者向け', '練習中', '完成形', '大会用', 'ネタ技', '基礎技', 'チュートリアル' ];
         let existingTagsCache = null;
 
         const TAG_PRESET_CONTEXTS = { save: { inputId: 'cloud-tags-input', toolsId: 'tag-preset-tools', purposesId: 'tag-preset-purposes', existingId: 'tag-preset-existing', countId: 'existing-tags-count' }, search: { inputId: 'explore-search-input', toolsId: 'search-tag-preset-tools', purposesId: 'search-tag-preset-purposes', existingId: 'search-tag-preset-existing', countId: 'search-existing-tags-count' } };
@@ -774,10 +445,10 @@
             const btn = document.getElementById('reload-existing-tags-btn'); const existingEl = document.getElementById('tag-preset-existing');
             btn.textContent = '取得中...'; existingEl.innerHTML = '<div class="tag-empty-msg">読み込み中...</div>';
             try {
-                const queries = [];
-                if (currentUser) queries.push(sb.from('trees').select('tags').eq('user_id', currentUser.id));
-                queries.push(sb.from('trees').select('tags').in('status', ['public_readonly', 'public_writable', 'unlisted']));
-
+                const queries = []; 
+                if (currentUser) queries.push(sb.from('trees').select('tags').eq('user_id', currentUser.id)); 
+                queries.push(sb.from('trees').select('tags').in('status', ['public', 'unlisted']));
+                
                 const results = await Promise.all(queries); const tagCount = new Map();
                 results.forEach(res => { if (res.error || !res.data) return; res.data.forEach(row => { if (!row.tags) return; row.tags.split(/\s+/).forEach(t => { if (!t) return; const normalized = t.startsWith('#') ? t : '#' + t; if (normalized.length <= 1) return; tagCount.set(normalized, (tagCount.get(normalized) || 0) + 1); }); }); });
                 existingTagsCache = Array.from(tagCount.entries()).sort((a, b) => b[1] - a[1]).map(e => e[0]); renderExistingTagsFor(TAG_PRESET_CONTEXTS.save);
@@ -788,32 +459,76 @@
         document.getElementById('search-reload-existing-tags-btn').addEventListener('click', async () => { const btn = document.getElementById('search-reload-existing-tags-btn'); btn.textContent = '取得中...'; await fetchExistingTags(); btn.textContent = '🔄 取得'; renderExistingTagsFor(TAG_PRESET_CONTEXTS.search); renderExistingTagsFor(TAG_PRESET_CONTEXTS.save); });
         document.getElementById('cloud-tags-input').addEventListener('input', renderTagPresets); document.getElementById('explore-search-input').addEventListener('input', () => renderTagPresetsFor(TAG_PRESET_CONTEXTS.search));
 
-        // ★ 保存実行処理（URLの更新を追加）
+        // ★ 保存実行処理（URL・共有ボタンの更新対応）
         document.getElementById('cloud-save-confirm-btn').addEventListener('click', async () => {
             const title = document.getElementById('cloud-title-input').value.trim();
             const tags = document.getElementById('cloud-tags-input').value.trim();
             const status = document.getElementById('cloud-status-select').value;
+            const editPerm = document.getElementById('cloud-edit-select').value;
             const authorName = document.getElementById('cloud-author-input').value.trim() || '名無しさん';
 
             if (!title) return alert('ファイル名を入力してください。');
+            
+            // 自分の図ではない場合の上書きチェック
+            let targetUserId = currentUser.id;
+            if (currentTreeOwnerId && currentTreeOwnerId !== currentUser.id) {
+                if (currentTreeEditPermission === 'anyone') {
+                    targetUserId = currentTreeOwnerId; // 誰でも編集可なら元の持ち主に保存
+                } else {
+                    // 基本的に最初のチェックで弾くが、念のため
+                    return alert('この図は上書き保存できません。別のファイル名で保存してください。');
+                }
+            }
+
             const btn = document.getElementById('cloud-save-confirm-btn'); btn.textContent = '保存中...';
             const graphData = cy.json();
-            const { data, error } = await sb.from('trees').upsert({ user_id: currentUser.id, title: title, graph_data: graphData, status: status, tags: tags, author_name: authorName }, { onConflict: 'user_id,title' });
+            
+            const { data, error } = await sb.from('trees').upsert({ 
+                user_id: targetUserId, 
+                title: title, 
+                graph_data: graphData, 
+                status: status, 
+                edit_permission: editPerm,
+                tags: tags, 
+                author_name: authorName 
+            }, { onConflict: 'user_id,title' });
 
             btn.textContent = '保存する';
             if (error) { console.error(error); alert('保存に失敗しました: ' + error.message); } else {
-                currentTreeTitle = title; currentTreeTags = tags; currentTreeStatus = status; currentTreeAuthor = authorName;
+                currentTreeTitle = title; currentTreeTags = tags; 
+                currentTreeStatus = status; currentTreeEditPermission = editPerm; 
+                currentTreeAuthor = authorName; currentTreeOwnerId = targetUserId;
+                
                 document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor})`;
                 document.getElementById('current-tree-info').style.display = 'inline-block';
 
-                // ★ 保存成功時にURLを更新
+                // URL更新
                 const newUrl = new URL(window.location.origin + window.location.pathname);
-                newUrl.searchParams.set('uid', currentUser.id);
+                newUrl.searchParams.set('uid', targetUserId);
                 newUrl.searchParams.set('t', title);
                 window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
-                document.getElementById('share-btn').style.display = 'inline-block';
+
+                // 公開・限定公開なら共有ボタンを表示
+                if (status === 'public' || status === 'unlisted') {
+                    document.getElementById('share-btn').style.display = 'inline-block';
+                } else {
+                    document.getElementById('share-btn').style.display = 'none';
+                }
 
                 closeCloudSaveModal(); alert(`クラウドに「${title}」として保存しました！`);
+            }
+        });
+
+        // 共有ボタンの処理
+        document.getElementById('share-btn').addEventListener('click', () => {
+            if (!currentTreeTitle) return alert('共有する図が開かれていません。');
+            if (currentTreeStatus === 'private') return alert('この図は「非公開」設定のため共有できません。\nクラウド保存ボタンから「限定公開」または「公開」に変更してください。');
+
+            const shareUrl = window.location.href;
+            if (navigator.share) {
+                navigator.share({ title: currentTreeTitle + 'のハッセ図', url: shareUrl }).catch(err => console.error('共有キャンセル:', err));
+            } else {
+                navigator.clipboard.writeText(shareUrl).then(() => alert('共有用URLをクリップボードにコピーしました！\n' + shareUrl)).catch(() => alert('コピーに失敗しました。ブラウザのURLバーから直接コピーしてください。'));
             }
         });
 
@@ -829,9 +544,8 @@
             btn.textContent = '🔖 お気に入り';
 
             if (error) return alert('取得失敗: ' + error.message);
-
             const list = document.getElementById('bookmark-load-list'); list.innerHTML = '';
-
+            
             if (!data || data.length === 0) {
                 list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">お気に入りはまだありません。</p>';
             } else {
@@ -853,15 +567,17 @@
         document.getElementById('cloud-load-btn').addEventListener('click', async () => {
             if (!currentUser) return alert('ログインしてください。');
             const btn = document.getElementById('cloud-load-btn'); btn.textContent = '取得中...';
-            const { data, error } = await sb.from('trees').select('title, status, tags').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
+            // edit_permissionも取得
+            const { data, error } = await sb.from('trees').select('title, status, tags, edit_permission').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
             btn.textContent = '☁️ クラウド読込';
 
             if (error) return alert('取得失敗: ' + error.message); if (!data || data.length === 0) return alert('保存されたデータがありません。');
             cloudLoadList.innerHTML = '';
             data.forEach(item => {
                 const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '8px'; row.style.alignItems = 'center'; row.style.marginBottom = '4px';
-                let statusIcon = '🔒'; if (item.status === 'unlisted') statusIcon = '🔗'; if (item.status === 'public_readonly') statusIcon = '👁'; if (item.status === 'public_writable') statusIcon = '✏️';
-                const fileBtn = document.createElement('button'); fileBtn.className = 'modal-btn secondary'; fileBtn.style.textAlign = 'left'; fileBtn.style.margin = '0'; fileBtn.style.flex = '1'; fileBtn.textContent = `${statusIcon} ${item.title}`;
+                let statusIcon = '🔒'; if (item.status === 'unlisted') statusIcon = '🔗'; if (item.status === 'public') statusIcon = '👁'; 
+                let editIcon = ''; if (item.edit_permission === 'anyone') editIcon = '✏️'; if (item.edit_permission === 'approved') editIcon = '👥';
+                const fileBtn = document.createElement('button'); fileBtn.className = 'modal-btn secondary'; fileBtn.style.textAlign = 'left'; fileBtn.style.margin = '0'; fileBtn.style.flex = '1'; fileBtn.textContent = `${statusIcon}${editIcon} ${item.title}`;
                 fileBtn.addEventListener('click', () => loadSpecificTree(item.title, currentUser.id));
                 const delBtn = document.createElement('button'); delBtn.textContent = '🗑'; delBtn.style.backgroundColor = '#e74c3c'; delBtn.style.padding = '12px'; delBtn.style.borderRadius = '8px'; delBtn.style.cursor = 'pointer'; delBtn.style.color = 'white'; delBtn.style.border = 'none';
                 delBtn.addEventListener('click', async (e) => { e.stopPropagation(); if (!confirm(`本当に「${item.title}」を削除しますか？`)) return; await sb.from('trees').delete().eq('user_id', currentUser.id).eq('title', item.title); document.getElementById('cloud-load-btn').click(); });
@@ -870,26 +586,45 @@
             openOverlay(); cloudLoadModal.style.display = 'block';
         });
 
-        // ★ 特定の図を読み込む処理（URLの更新を追加）
+        // ★ 特定の図を読み込む処理
         async function loadSpecificTree(title, userId) {
-            const { data, error } = await sb.from('trees').select('graph_data, status, tags, author_name').eq('user_id', userId).eq('title', title).single();
+            const { data, error } = await sb.from('trees').select('graph_data, status, tags, author_name, edit_permission').eq('user_id', userId).eq('title', title).single();
             if (error) { alert('読込失敗: ' + error.message); } else if (data && data.graph_data) {
                 cy.json(data.graph_data); undoStack = [];
-                currentTreeTitle = title; currentTreeTags = data.tags || ''; currentTreeStatus = data.status || 'private';
+                currentTreeOwnerId = userId;
+                currentTreeTitle = title; currentTreeTags = data.tags || ''; 
+                currentTreeStatus = data.status || 'private';
+                currentTreeEditPermission = data.edit_permission || 'none';
                 currentTreeAuthor = data.author_name || '名無しさん';
-
+                
                 document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor})`;
                 document.getElementById('current-tree-info').style.display = 'inline-block';
 
-                if (currentUser && userId !== currentUser.id && currentTreeStatus === 'public_readonly') { alert('【閲覧モード】\nこの図は読み取り専用です。上書き保存はできませんが、別名で保存すれば自分のデータとして編集可能です。'); }
+                // 共有ボタンの表示判定
+                if (currentTreeStatus === 'public' || currentTreeStatus === 'unlisted') {
+                    document.getElementById('share-btn').style.display = 'inline-block';
+                } else {
+                    document.getElementById('share-btn').style.display = 'none';
+                }
+
+                // 共同編集権限チェック
+                if (currentUser && userId !== currentUser.id) { 
+                    if (currentTreeEditPermission === 'none') {
+                        alert('【閲覧モード】\nこの図は読み取り専用です。上書き保存はできませんが、別名で保存すれば自分のデータとして編集可能です。'); 
+                    } else if (currentTreeEditPermission === 'approved') {
+                        alert('【承認制モード】\nこの図は承認されたユーザーのみ上書き編集可能です。（現在は仮の警告です）');
+                    } else if (currentTreeEditPermission === 'anyone') {
+                        alert('【共同編集モード】\nこの図は誰でも編集可能です！変更して保存すると上書きされます。');
+                    }
+                }
+
                 normalizeGraphData(); updateGroupLegend(); closeCloudLoadModal(); closeExploreModal(); closeBookmarkLoadModal();
 
-                // ★ 図の読み込み完了時にURLを更新
+                // URL更新
                 const newUrl = new URL(window.location.origin + window.location.pathname);
                 newUrl.searchParams.set('uid', userId);
                 newUrl.searchParams.set('t', title);
                 window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
-                document.getElementById('share-btn').style.display = 'inline-block';
             }
         }
 
@@ -905,7 +640,8 @@
             const btn = document.getElementById('explore-execute-btn'); const list = document.getElementById('explore-results-list'); const rawQuery = document.getElementById('explore-search-input').value.trim();
             btn.textContent = '検索中...'; list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">読み込み中...</p>';
 
-            const { data, error } = await sb.from('trees').select('user_id, title, status, tags, graph_data, updated_at, author_name').in('status', ['public_readonly', 'public_writable']).order('updated_at', { ascending: false }).limit(50);
+            // status が 'public' のものだけ検索する
+            const { data, error } = await sb.from('trees').select('user_id, title, status, edit_permission, tags, graph_data, updated_at, author_name').eq('status', 'public').order('updated_at', { ascending: false }).limit(50); 
             btn.textContent = '検索';
 
             if (error) { list.innerHTML = `<p style="color:#e74c3c;">エラーが発生しました: ${error.message}</p>`; return; }
@@ -930,7 +666,11 @@
             filteredData.forEach(item => {
                 const el = document.createElement('div'); el.className = 'search-result-item';
                 const nodeCount = (item.graph_data && item.graph_data.elements && item.graph_data.elements.nodes) ? item.graph_data.elements.nodes.length : 0;
-                const icon = item.status === 'public_writable' ? '✏️(共同編集可)' : '👁(閲覧のみ)';
+                
+                let iconStr = '👁(閲覧のみ)';
+                if (item.edit_permission === 'anyone') iconStr = '✏️(共同編集可)';
+                if (item.edit_permission === 'approved') iconStr = '👥(承認制)';
+
                 const dateStr = item.updated_at ? new Date(item.updated_at).toLocaleDateString() : '';
                 const author = item.author_name || '名無しさん';
 
@@ -939,25 +679,25 @@
                         <div>
                             <div class="search-result-title">${item.title} <span style="font-size: 11px; color: #7f8c8d; font-weight: normal;">by ${author}</span></div>
                             ${item.tags ? `<div class="search-result-tags">${item.tags}</div>` : ''}
-                            <div class="search-result-stats">${icon} | 技の数: ${nodeCount} | 更新: ${dateStr}</div>
+                            <div class="search-result-stats">${iconStr} | 技の数: ${nodeCount} | 更新: ${dateStr}</div>
                         </div>
                         <button class="bookmark-btn" style="background: none; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 16px; padding: 4px 8px; flex-shrink: 0;" title="ブックマーク">🔖</button>
                     </div>
                 `;
-
+                
                 el.addEventListener('click', (e) => { if (!e.target.closest('.bookmark-btn')) loadSpecificTree(item.title, item.user_id); });
 
                 const bkmkBtn = el.querySelector('.bookmark-btn');
-
+                
                 if (currentUser) {
                     sb.from('bookmarks').select('id').eq('user_id', currentUser.id).eq('target_user_id', item.user_id).eq('target_title', item.title).single()
-                        .then(({ data: existing }) => { if (existing) { bkmkBtn.textContent = '⭐'; bkmkBtn.style.backgroundColor = '#fff3cd'; } });
+                    .then(({data: existing}) => { if (existing) { bkmkBtn.textContent = '⭐'; bkmkBtn.style.backgroundColor = '#fff3cd'; } });
                 }
 
                 bkmkBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
+                    e.stopPropagation(); 
                     if (!currentUser) return alert('ブックマークするにはログインしてください。');
-
+                    
                     bkmkBtn.textContent = '⏳';
                     const { data: existing } = await sb.from('bookmarks').select('id').eq('user_id', currentUser.id).eq('target_user_id', item.user_id).eq('target_title', item.title).single();
                     if (existing) {
@@ -972,7 +712,7 @@
             });
         });
 
-        const PRESET_COLORS = ['#e74c3c', '#e91e63', '#9b59b6', '#673ab7', '#3f51b5', '#3498db', '#03a9f4', '#00bcd4', '#1abc9c', '#2ecc71', '#8bc34a', '#cddc39', '#f1c40f', '#ffc107', '#f39c12', '#e67e22', '#795548', '#95a5a6', '#34495e', '#000000'];
+        const PRESET_COLORS = [ '#e74c3c', '#e91e63', '#9b59b6', '#673ab7', '#3f51b5', '#3498db', '#03a9f4', '#00bcd4', '#1abc9c', '#2ecc71', '#8bc34a', '#cddc39', '#f1c40f', '#ffc107', '#f39c12', '#e67e22', '#795548', '#95a5a6', '#34495e', '#000000' ];
 
         function normalizeColor(color) { if (!color) return '#95a5a6'; let c = String(color).trim().toLowerCase(); if (/^#[0-9a-f]{3}$/.test(c)) c = '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3]; return c; }
 
@@ -1209,57 +949,26 @@
         });
 
         document.getElementById('arrange-btn').addEventListener('click', () => { cy.layout({ name: 'breadthfirst', directed: true, padding: 50, spacingFactor: 1.5 }).run(); });
-
-        document.getElementById('local-save-btn').addEventListener('click', () => {
-            const data = cy.json(); const jsonStr = JSON.stringify(data, null, 2); const blob = new Blob([jsonStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'juggling_hasse_data.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        
+        document.getElementById('local-save-btn').addEventListener('click', () => { 
+            const data = cy.json(); const jsonStr = JSON.stringify(data, null, 2); const blob = new Blob([jsonStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'juggling_hasse_data.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); 
         });
-
-        document.getElementById('file-input').addEventListener('change', (evt) => {
-            const file = evt.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); cy.json(data); undoStack = []; normalizeGraphData(); updateGroupLegend(); document.getElementById('current-tree-info').style.display = 'none'; } catch (err) { alert('ファイルの読み込みに失敗しました。'); } }; reader.readAsText(file); evt.target.value = '';
+        
+        document.getElementById('file-input').addEventListener('change', (evt) => { 
+            const file = evt.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); cy.json(data); undoStack = []; normalizeGraphData(); updateGroupLegend(); document.getElementById('current-tree-info').style.display = 'none'; } catch (err) { alert('ファイルの読み込みに失敗しました。'); } }; reader.readAsText(file); evt.target.value = ''; 
         });
 
         toolbarPalette.init(); modalPalette.init(); filterPalette.init(); filterPalette.setSelectedColors([]); normalizeGraphData(); updateGroupLegend();
 
-        // ★ 共有ボタンの処理
-        document.getElementById('share-btn').addEventListener('click', () => {
-            if (!currentTreeTitle) {
-                alert('共有する図が開かれていません。');
-                return;
-            }
-            if (currentTreeStatus === 'private') {
-                alert('この図は「非公開」設定のため共有できません。\nクラウド保存ボタンから「限定公開」または「公開」に変更してください。');
-                return;
-            }
-
-            const shareUrl = window.location.href; // replaceStateで設定済みのURLを取得
-
-            // スマホなどWeb Share APIに対応している場合はネイティブの共有メニューを開く
-            if (navigator.share) {
-                navigator.share({
-                    title: currentTreeTitle + 'のハッセ図',
-                    url: shareUrl
-                }).catch(err => console.error('共有キャンセル:', err));
-            } else {
-                // PCなど対応していない場合はクリップボードにコピー
-                navigator.clipboard.writeText(shareUrl).then(() => {
-                    alert('共有用URLをクリップボードにコピーしました！\n' + shareUrl);
-                }).catch(() => {
-                    alert('コピーに失敗しました。ブラウザのURLバーから直接コピーしてください。');
-                });
-            }
-        });
-
-        // ★ ここから追加：ページ読み込み時にURLパラメータがあれば自動で図を開く
+        // ページ読み込み時にURLパラメータがあれば自動で図を開く
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const uid = urlParams.get('uid');
             const t = urlParams.get('t');
             if (uid && t) {
-                // パラメータがあれば自動で読み込む
                 loadSpecificTree(t, uid);
             }
         });
     </script>
 </body>
-
 </html>

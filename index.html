@@ -401,15 +401,17 @@
             const deleteBtn = document.getElementById('mode-delete-btn');
             const undoBtn = document.getElementById('undo-btn');
             const arrangeBtn = document.getElementById('arrange-btn');
-            const controls = [addNodeBtn, prereqBtn, transBtn, deleteBtn, undoBtn, arrangeBtn];
+            const viewBtn = document.getElementById('mode-view-btn');
+            const controls = [viewBtn, addNodeBtn, prereqBtn, transBtn, deleteBtn, undoBtn, arrangeBtn];
             controls.forEach(btn => {
+                if (!btn) return;
                 btn.disabled = readOnly;
                 btn.style.opacity = readOnly ? '0.5' : '1';
                 btn.style.cursor = readOnly ? 'not-allowed' : 'pointer';
             });
-            cloudSaveBtn.disabled = readOnly;
-            cloudSaveBtn.style.opacity = readOnly ? '0.5' : '1';
-            cloudSaveBtn.style.cursor = readOnly ? 'not-allowed' : 'pointer';
+            cloudSaveBtn.disabled = readOnly || !currentUser;
+            cloudSaveBtn.style.opacity = (readOnly || !currentUser) ? '0.5' : '1';
+            cloudSaveBtn.style.cursor = (readOnly || !currentUser) ? 'not-allowed' : 'pointer';
             if (readOnly) {
                 cloudSaveBtn.textContent = '☁️ 保存不可';
             } else if (currentUser) {
@@ -469,12 +471,27 @@
             normalizeGraphData();
             updateGroupLegend();
             setMode('view');
-            document.getElementById('cloud-save-btn').disabled = false;
-            document.getElementById('cloud-save-btn').style.opacity = '1';
-            document.getElementById('cloud-save-btn').style.cursor = 'pointer';
+            document.getElementById('cloud-save-btn').disabled = !currentUser;
+            document.getElementById('cloud-save-btn').style.opacity = currentUser ? '1' : '0.5';
+            document.getElementById('cloud-save-btn').style.cursor = currentUser ? 'pointer' : 'not-allowed';
             document.getElementById('add-node-btn').disabled = false;
             document.getElementById('add-node-btn').style.opacity = '1';
             document.getElementById('add-node-btn').style.cursor = 'pointer';
+            document.getElementById('mode-prereq-btn').disabled = false;
+            document.getElementById('mode-prereq-btn').style.opacity = '1';
+            document.getElementById('mode-prereq-btn').style.cursor = 'pointer';
+            document.getElementById('mode-trans-btn').disabled = false;
+            document.getElementById('mode-trans-btn').style.opacity = '1';
+            document.getElementById('mode-trans-btn').style.cursor = 'pointer';
+            document.getElementById('mode-delete-btn').disabled = false;
+            document.getElementById('mode-delete-btn').style.opacity = '1';
+            document.getElementById('mode-delete-btn').style.cursor = 'pointer';
+            document.getElementById('undo-btn').disabled = false;
+            document.getElementById('undo-btn').style.opacity = '1';
+            document.getElementById('undo-btn').style.cursor = 'pointer';
+            document.getElementById('arrange-btn').disabled = false;
+            document.getElementById('arrange-btn').style.opacity = '1';
+            document.getElementById('arrange-btn').style.cursor = 'pointer';
             alert('新しい図を作成しました。技を追加できます。');
         }
 

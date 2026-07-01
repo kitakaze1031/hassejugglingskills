@@ -246,7 +246,7 @@
 
     <div id="explore-modal" class="floating-modal" style="max-height: 90vh; overflow-y: auto; max-width: 480px; width: 95%;">
         <h3>🌐 みんなのハッセ図を探す</h3>
-        <p class="hint-text" style="text-align:center; margin-bottom:12px;">公開されている他の人のハッセ図を検索できます。</p>
+        <p class="hint-text" style="text-align:center; margin-bottom:12px;">公開されている他の人のハッセ図を検索できます。公開図が見つからない場合は、Supabase 側の読み取りポリシーも確認してください。</p>
         <div class="modal-field" style="display:flex; gap:8px;">
             <input type="text" id="explore-search-input" placeholder="タグ(#技名)、タイトル、図の中の技名で検索..." style="flex:1;">
             <button id="explore-execute-btn" class="modal-btn" style="width:auto; margin:0; padding:10px 16px;">検索</button>
@@ -588,7 +588,9 @@
 
         // ★ 特定の図を読み込む処理
         async function loadSpecificTree(title, userId) {
-            const { data, error } = await sb.from('trees').select('graph_data, status, tags, author_name, edit_permission').eq('user_id', userId).eq('title', title).single();
+            const baseQuery = sb.from('trees').select('graph_data, status, tags, author_name, edit_permission').eq('user_id', userId).eq('title', title);
+            const query = (currentUser && currentUser.id === userId) ? baseQuery : baseQuery.eq('status', 'public');
+            const { data, error } = await query.single();
             if (error) { alert('読込失敗: ' + error.message); } else if (data && data.graph_data) {
                 cy.json(data.graph_data); undoStack = [];
                 currentTreeOwnerId = userId;
@@ -644,8 +646,8 @@
             const { data, error } = await sb.from('trees').select('user_id, title, status, edit_permission, tags, graph_data, updated_at, author_name').eq('status', 'public').order('updated_at', { ascending: false }).limit(50); 
             btn.textContent = '検索';
 
-            if (error) { list.innerHTML = `<p style="color:#e74c3c;">エラーが発生しました: ${error.message}</p>`; return; }
-            if (!data || data.length === 0) { list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">公開されている図が見つかりませんでした。</p>'; return; }
+            if (error) { list.innerHTML = `<p style="color:#e74c3c;">エラーが発生しました: ${error.message}</p><p style="font-size:12px; color:#7f8c8d; margin-top:6px;">公開図が見つからない場合は、Supabase の RLS で public 行の読み取りを許可しているか確認してください。</p>`; return; }
+            if (!data || data.length === 0) { list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">公開されている図が見つかりませんでした。<br>Supabase の RLS で public の読み取りを許可しているか確認してください。</p>'; return; }
 
             const tokens = rawQuery.split(/\s+/).filter(t => t.length > 0); const tagTokens = tokens.filter(t => t.startsWith('#')).map(t => t.toLowerCase()); const wordTokens = tokens.filter(t => !t.startsWith('#')).map(t => t.toLowerCase());
 

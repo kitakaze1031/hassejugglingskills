@@ -389,22 +389,33 @@
 
         function closeCloudSaveModal() { document.getElementById('cloud-save-modal').style.display = 'none'; closeOverlayIfUnused(); }
 
+        function setCloudPermissionControlsDisabled(disabled) {
+            const statusSelect = document.getElementById('cloud-status-select');
+            const editSelect = document.getElementById('cloud-edit-select');
+            statusSelect.disabled = disabled;
+            editSelect.disabled = disabled;
+            statusSelect.style.opacity = disabled ? '0.6' : '1';
+            editSelect.style.opacity = disabled ? '0.6' : '1';
+        }
+
         document.getElementById('cloud-save-btn').addEventListener('click', () => {
             if (!currentUser) return alert('ログインしてください。');
             
-            // 自分の図じゃないのに上書きしようとした場合の警告
-            if (currentTreeOwnerId && currentTreeOwnerId !== currentUser.id && currentTreeEditPermission !== 'anyone') {
-                alert('この図は閲覧専用または承認制のため、上書き保存できません。\n別のファイル名にして「自分の図」として保存してください。');
-                // 別名保存を促すため、ステータス等をリセット
+            const isSavingOtherUserTree = currentTreeOwnerId && currentTreeOwnerId !== currentUser.id;
+            const shouldForcePrivateCopy = isSavingOtherUserTree || (currentTreeOwnerId && currentTreeOwnerId !== currentUser.id && currentTreeEditPermission !== 'anyone');
+
+            if (shouldForcePrivateCopy) {
+                alert('この図は他人の図のため、公開設定や共同編集権限は変更できません。\n自分の図としてコピー保存します。');
                 document.getElementById('cloud-status-select').value = 'private';
                 document.getElementById('cloud-edit-select').value = 'none';
-                document.getElementById('cloud-title-input').value = currentTreeTitle + ' (コピー)';
+                document.getElementById('cloud-title-input').value = (currentTreeTitle || '無題のハッセ図') + ' (コピー)';
             } else {
                 document.getElementById('cloud-title-input').value = currentTreeTitle || '無題のハッセ図';
                 document.getElementById('cloud-status-select').value = currentTreeStatus || 'private';
                 document.getElementById('cloud-edit-select').value = currentTreeEditPermission || 'none';
             }
 
+            setCloudPermissionControlsDisabled(isSavingOtherUserTree || shouldForcePrivateCopy);
             document.getElementById('cloud-tags-input').value = currentTreeTags || '';
             const defaultAuthor = currentTreeAuthor || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
             document.getElementById('cloud-author-input').value = defaultAuthor;

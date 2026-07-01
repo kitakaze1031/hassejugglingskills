@@ -199,6 +199,7 @@
         <button id="cloud-save-btn" class="btn-io" style="display: none;">☁️ クラウド保存</button>
         <button id="cloud-load-btn" class="btn-io" style="display: none;">☁️ クラウド読込</button>
         <button id="bookmark-list-btn" class="btn-bookmark" style="display: none;">🔖 お気に入り</button>
+        <button id="new-diagram-btn" class="btn-io">🆕 新しく作る</button>
         <button id="local-save-btn" class="btn-io">💾 ローカル保存</button>
         <button id="local-load-btn" class="btn-io" onclick="document.getElementById('file-input').click()">📂 ローカル読込</button>
         <input type="file" id="file-input" style="display: none;" accept=".json">
@@ -445,6 +446,26 @@
                 index += 1;
             }
         }
+
+        document.getElementById('new-diagram-btn').addEventListener('click', () => {
+            if (!confirm('現在の図を閉じて、新しい図を作成しますか？')) return;
+            cy.elements().remove();
+            undoStack = [];
+            currentTreeTitle = '';
+            currentTreeStatus = 'private';
+            currentTreeEditPermission = 'none';
+            currentTreeTags = '';
+            currentTreeAuthor = '';
+            currentTreeOwnerId = null;
+            setReadOnlyUI(false);
+            document.getElementById('current-tree-info').textContent = '🆕 新しい図を作成中';
+            document.getElementById('current-tree-info').style.display = 'inline-block';
+            document.getElementById('share-btn').style.display = 'none';
+            normalizeGraphData();
+            updateGroupLegend();
+            setMode('view');
+            alert('新しい図を作成しました。技を追加できます。');
+        });
 
         document.getElementById('cloud-save-btn').addEventListener('click', () => {
             if (!currentUser) return alert('ログインしてください。');

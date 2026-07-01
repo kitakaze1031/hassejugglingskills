@@ -367,6 +367,7 @@
         let currentTreeOwnerId = null; // 現在開いている図の作成者ID
         let isReadOnlyTree = false;
         let treeStateVersion = 0;
+        let isNewDraft = false;
 
         sb.auth.onAuthStateChange((event, session) => {
             currentUser = session?.user || null;
@@ -411,9 +412,10 @@
                 btn.style.opacity = readOnly ? '0.5' : '1';
                 btn.style.cursor = readOnly ? 'not-allowed' : 'pointer';
             });
-            cloudSaveBtn.disabled = readOnly || !currentUser;
-            cloudSaveBtn.style.opacity = (readOnly || !currentUser) ? '0.5' : '1';
-            cloudSaveBtn.style.cursor = (readOnly || !currentUser) ? 'not-allowed' : 'pointer';
+            const shouldDisableSave = readOnly || (!currentUser && !isNewDraft);
+            cloudSaveBtn.disabled = shouldDisableSave;
+            cloudSaveBtn.style.opacity = shouldDisableSave ? '0.5' : '1';
+            cloudSaveBtn.style.cursor = shouldDisableSave ? 'not-allowed' : 'pointer';
             if (readOnly) {
                 cloudSaveBtn.textContent = '☁️ 保存不可';
             } else if (currentUser) {
@@ -454,10 +456,16 @@
         }
 
         function startNewDiagram() {
-            if (!confirm('現在の図を閉じて、新しい図を作成しますか？')) return;
+            if (!confirm('現在の図を閉じて、新しい図を作成しますか？（保存していない内容は消えます）')) return;
             treeStateVersion += 1;
-            cy.elements().remove();
-            cy.css({});
+
+            // グラフを完全にクリア
+            if (typeof cy !== 'undefined') {
+                cy.elements().remove();
+                try { cy.css({}); } catch (e) { /* ignore */ }
+            }
+
+            // 内部状態を初期化
             undoStack = [];
             currentTreeTitle = '';
             currentTreeStatus = 'private';
@@ -466,35 +474,41 @@
             currentTreeAuthor = '';
             currentTreeOwnerId = null;
             isReadOnlyTree = false;
+            isNewDraft = true;
+
+            // UI側も安全に初期化（要素が存在するかチェック）
             setReadOnlyUI(false);
             updateAuthUI();
-            document.getElementById('current-tree-info').textContent = '🆕 新しい図を作成中';
-            document.getElementById('current-tree-info').style.display = 'inline-block';
-            document.getElementById('share-btn').style.display = 'none';
+
+            const currentInfo = document.getElementById('current-tree-info');
+            if (currentInfo) {
+                currentInfo.textContent = '🆕 新しい図を作成中';
+                currentInfo.style.display = 'inline-block';
+            }
+
+            const shareBtn = document.getElementById('share-btn'); if (shareBtn) shareBtn.style.display = 'none';
+
+            // クラウド保存ダイアログ周りの入力をリセット
+            const cloudTitle = document.getElementById('cloud-title-input'); if (cloudTitle) cloudTitle.value = '';
+            const cloudAuthor = document.getElementById('cloud-author-input'); if (cloudAuthor) cloudAuthor.value = '';
+            const cloudTags = document.getElementById('cloud-tags-input'); if (cloudTags) cloudTags.value = '';
+            const statusSelect = document.getElementById('cloud-status-select'); if (statusSelect) { statusSelect.value = 'private'; statusSelect.disabled = false; statusSelect.style.opacity = '1'; }
+            const editSelect = document.getElementById('cloud-edit-select'); if (editSelect) { editSelect.value = 'none'; editSelect.disabled = false; editSelect.style.opacity = '1'; }
+
+            const cloudSaveBtn = document.getElementById('cloud-save-btn'); if (cloudSaveBtn) { cloudSaveBtn.disabled = false; cloudSaveBtn.style.opacity = '1'; cloudSaveBtn.style.cursor = 'pointer'; }
+
+            const addNodeBtn = document.getElementById('add-node-btn'); if (addNodeBtn) { addNodeBtn.disabled = false; addNodeBtn.style.opacity = '1'; addNodeBtn.style.cursor = 'pointer'; }
+            const modePrereqBtn = document.getElementById('mode-prereq-btn'); if (modePrereqBtn) { modePrereqBtn.disabled = false; modePrereqBtn.style.opacity = '1'; modePrereqBtn.style.cursor = 'pointer'; }
+            const modeTransBtn = document.getElementById('mode-trans-btn'); if (modeTransBtn) { modeTransBtn.disabled = false; modeTransBtn.style.opacity = '1'; modeTransBtn.style.cursor = 'pointer'; }
+            const modeDeleteBtn = document.getElementById('mode-delete-btn'); if (modeDeleteBtn) { modeDeleteBtn.disabled = false; modeDeleteBtn.style.opacity = '1'; modeDeleteBtn.style.cursor = 'pointer'; }
+            const undoBtn = document.getElementById('undo-btn'); if (undoBtn) { undoBtn.disabled = false; undoBtn.style.opacity = '1'; undoBtn.style.cursor = 'pointer'; }
+            const arrangeBtn = document.getElementById('arrange-btn'); if (arrangeBtn) { arrangeBtn.disabled = false; arrangeBtn.style.opacity = '1'; arrangeBtn.style.cursor = 'pointer'; }
+
+            // 正しく初期化された状態で表示を更新
             normalizeGraphData();
             updateGroupLegend();
             setMode('view');
-            document.getElementById('cloud-save-btn').disabled = !currentUser;
-            document.getElementById('cloud-save-btn').style.opacity = currentUser ? '1' : '0.5';
-            document.getElementById('cloud-save-btn').style.cursor = currentUser ? 'pointer' : 'not-allowed';
-            document.getElementById('add-node-btn').disabled = false;
-            document.getElementById('add-node-btn').style.opacity = '1';
-            document.getElementById('add-node-btn').style.cursor = 'pointer';
-            document.getElementById('mode-prereq-btn').disabled = false;
-            document.getElementById('mode-prereq-btn').style.opacity = '1';
-            document.getElementById('mode-prereq-btn').style.cursor = 'pointer';
-            document.getElementById('mode-trans-btn').disabled = false;
-            document.getElementById('mode-trans-btn').style.opacity = '1';
-            document.getElementById('mode-trans-btn').style.cursor = 'pointer';
-            document.getElementById('mode-delete-btn').disabled = false;
-            document.getElementById('mode-delete-btn').style.opacity = '1';
-            document.getElementById('mode-delete-btn').style.cursor = 'pointer';
-            document.getElementById('undo-btn').disabled = false;
-            document.getElementById('undo-btn').style.opacity = '1';
-            document.getElementById('undo-btn').style.cursor = 'pointer';
-            document.getElementById('arrange-btn').disabled = false;
-            document.getElementById('arrange-btn').style.opacity = '1';
-            document.getElementById('arrange-btn').style.cursor = 'pointer';
+
             alert('新しい図を作成しました。技を追加できます。');
         }
 
@@ -506,7 +520,7 @@
 
             const isSavingOtherUserTree = Boolean(currentTreeOwnerId && currentTreeOwnerId !== currentUser.id);
             const isCollaborativeEdit = isSavingOtherUserTree && currentTreeEditPermission === 'anyone';
-            const shouldForcePrivateCopy = isSavingOtherUserTree && !isCollaborativeEdit;
+            const shouldForcePrivateCopy = !isNewDraft && isSavingOtherUserTree && !isCollaborativeEdit;
 
             if (shouldForcePrivateCopy) {
                 alert('この図は他人の図のため、公開設定や共同編集権限は変更できません。\n自分の図としてコピー保存します。');
@@ -519,7 +533,14 @@
                 document.getElementById('cloud-edit-select').value = currentTreeEditPermission || 'none';
             }
 
-            setCloudPermissionControlsDisabled(isSavingOtherUserTree);
+            const shouldLockPermissionControls = !isNewDraft && isSavingOtherUserTree;
+            setCloudPermissionControlsDisabled(shouldLockPermissionControls);
+            if (isNewDraft) {
+                document.getElementById('cloud-status-select').disabled = false;
+                document.getElementById('cloud-status-select').style.opacity = '1';
+                document.getElementById('cloud-edit-select').disabled = false;
+                document.getElementById('cloud-edit-select').style.opacity = '1';
+            }
             const copyNote = document.getElementById('cloud-save-copy-note');
             if (shouldForcePrivateCopy) {
                 copyNote.style.display = 'block';
@@ -528,6 +549,9 @@
                 copyNote.style.display = 'none';
             }
             document.getElementById('cloud-tags-input').value = currentTreeTags || '';
+            document.getElementById('cloud-save-btn').disabled = false;
+            document.getElementById('cloud-save-btn').style.opacity = '1';
+            document.getElementById('cloud-save-btn').style.cursor = 'pointer';
             const defaultAuthor = currentTreeAuthor || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
             document.getElementById('cloud-author-input').value = defaultAuthor;
 
@@ -609,7 +633,8 @@
             saveButton.textContent = '保存中...';
             const graphData = cy.json();
 
-            const isOverwrite = (isCollaborativeEdit && currentTreeTitle === title) || (!isSavingOtherUserTree && currentTreeOwnerId === targetUserId && currentTreeTitle === title);
+            const shouldCreateFreshDraft = isNewDraft || currentTreeOwnerId === null || currentTreeOwnerId === undefined;
+            const isOverwrite = !shouldCreateFreshDraft && ((isCollaborativeEdit && currentTreeTitle === title) || (!isSavingOtherUserTree && currentTreeOwnerId === targetUserId && currentTreeTitle === title));
             let result;
             if (isOverwrite) {
                 result = await sb.from('trees').update({
@@ -638,7 +663,7 @@
             if (error) { console.error(error); alert('保存に失敗しました: ' + error.message); } else {
                 currentTreeTitle = finalTitle; currentTreeTags = tags;
                 currentTreeStatus = finalStatus; currentTreeEditPermission = finalEditPerm;
-                currentTreeAuthor = authorName; currentTreeOwnerId = targetUserId;
+                currentTreeAuthor = authorName; currentTreeOwnerId = targetUserId; isNewDraft = false;
 
                 document.getElementById('current-tree-info').textContent = `📄 ${finalTitle} (by ${currentTreeAuthor})`;
                 document.getElementById('current-tree-info').style.display = 'inline-block';
@@ -736,6 +761,7 @@
                 cy.json(data.graph_data); undoStack = [];
                 currentTreeOwnerId = userId;
                 currentTreeTitle = title; currentTreeTags = data.tags || ''; 
+                isNewDraft = false;
                 currentTreeStatus = data.status || 'private';
                 currentTreeEditPermission = data.edit_permission || 'none';
                 currentTreeAuthor = data.author_name || '名無しさん';

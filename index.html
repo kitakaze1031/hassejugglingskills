@@ -292,6 +292,7 @@
             const loginBtn = document.getElementById('login-btn'); const logoutBtn = document.getElementById('logout-btn');
             const userInfo = document.getElementById('user-info'); const cloudSaveBtn = document.getElementById('cloud-save-btn');
             const cloudLoadBtn = document.getElementById('cloud-load-btn'); const bookmarkListBtn = document.getElementById('bookmark-list-btn');
+            const guideBtn = document.getElementById('guide-btn');
 
             if (currentUser) {
                 loginBtn.style.display = 'none'; logoutBtn.style.display = 'inline-block';
@@ -300,6 +301,9 @@
             } else {
                 loginBtn.style.display = 'inline-block'; logoutBtn.style.display = 'none';
                 userInfo.style.display = 'none'; cloudSaveBtn.style.display = 'none'; cloudLoadBtn.style.display = 'none'; bookmarkListBtn.style.display = 'none';
+            }
+            if (guideBtn) {
+                guideBtn.style.display = 'inline-block';
             }
         }
 

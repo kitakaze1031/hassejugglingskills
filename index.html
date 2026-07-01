@@ -371,6 +371,7 @@
         sb.auth.onAuthStateChange((event, session) => {
             currentUser = session?.user || null;
             updateAuthUI();
+            setReadOnlyUI(isReadOnlyTree);
         });
 
         function updateAuthUI() {
@@ -585,7 +586,10 @@
             const title = document.getElementById('cloud-title-input').value.trim();
             const tags = document.getElementById('cloud-tags-input').value.trim();
             const authorName = document.getElementById('cloud-author-input').value.trim() || '名無しさん';
+            const saveButton = document.getElementById('cloud-save-confirm-btn');
 
+            if (!currentUser) return alert('ログインしてください。');
+            if (isReadOnlyTree) return alert('この図は読み取り専用のため、保存できません。');
             if (!title) return alert('ファイル名を入力してください。');
 
             const isSavingOtherUserTree = Boolean(currentUser && currentTreeOwnerId && currentTreeOwnerId !== currentUser.id);
@@ -598,11 +602,11 @@
             const finalTitle = isCollaborativeEdit ? currentTreeTitle : (isSavingOtherUserTree ? await buildCopySaveTitle(title) : title);
 
             if (isCollaborativeEdit && title !== currentTreeTitle) {
-                btn.textContent = '保存する';
+                saveButton.textContent = '保存する';
                 return alert('共同編集可の図は現在のタイトルで保存してください。');
             }
 
-            const btn = document.getElementById('cloud-save-confirm-btn'); btn.textContent = '保存中...';
+            saveButton.textContent = '保存中...';
             const graphData = cy.json();
 
             const isOverwrite = (isCollaborativeEdit && currentTreeTitle === title) || (!isSavingOtherUserTree && currentTreeOwnerId === targetUserId && currentTreeTitle === title);
@@ -630,7 +634,7 @@
 
             const { error } = result;
 
-            btn.textContent = '保存する';
+            saveButton.textContent = '保存する';
             if (error) { console.error(error); alert('保存に失敗しました: ' + error.message); } else {
                 currentTreeTitle = finalTitle; currentTreeTags = tags;
                 currentTreeStatus = finalStatus; currentTreeEditPermission = finalEditPerm;

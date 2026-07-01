@@ -414,6 +414,8 @@
                 cloudSaveBtn.textContent = '☁️ 保存不可';
             } else if (currentUser) {
                 cloudSaveBtn.textContent = '☁️ クラウド保存';
+            } else {
+                cloudSaveBtn.textContent = '☁️ クラウド保存';
             }
             if (readOnly) setMode('view');
         }
@@ -458,13 +460,21 @@
             currentTreeTags = '';
             currentTreeAuthor = '';
             currentTreeOwnerId = null;
+            isReadOnlyTree = false;
             setReadOnlyUI(false);
+            updateAuthUI();
             document.getElementById('current-tree-info').textContent = '🆕 新しい図を作成中';
             document.getElementById('current-tree-info').style.display = 'inline-block';
             document.getElementById('share-btn').style.display = 'none';
             normalizeGraphData();
             updateGroupLegend();
             setMode('view');
+            document.getElementById('cloud-save-btn').disabled = false;
+            document.getElementById('cloud-save-btn').style.opacity = '1';
+            document.getElementById('cloud-save-btn').style.cursor = 'pointer';
+            document.getElementById('add-node-btn').disabled = false;
+            document.getElementById('add-node-btn').style.opacity = '1';
+            document.getElementById('add-node-btn').style.cursor = 'pointer';
             alert('新しい図を作成しました。技を追加できます。');
         }
 

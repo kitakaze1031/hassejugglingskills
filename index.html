@@ -366,6 +366,7 @@
         let currentTreeAuthor = ''; 
         let currentTreeOwnerId = null; // 現在開いている図の作成者ID
         let isReadOnlyTree = false;
+        let treeStateVersion = 0;
 
         sb.auth.onAuthStateChange((event, session) => {
             currentUser = session?.user || null;
@@ -453,6 +454,7 @@
 
         function startNewDiagram() {
             if (!confirm('現在の図を閉じて、新しい図を作成しますか？')) return;
+            treeStateVersion += 1;
             cy.elements().remove();
             cy.css({});
             undoStack = [];
@@ -721,9 +723,11 @@
 
         // ★ 特定の図を読み込む処理
         async function loadSpecificTree(title, userId) {
+            const requestVersion = ++treeStateVersion;
             const baseQuery = sb.from('trees').select('graph_data, status, tags, author_name, edit_permission').eq('user_id', userId).eq('title', title);
             const query = (currentUser && currentUser.id === userId) ? baseQuery : baseQuery.eq('status', 'public');
             const { data, error } = await query.single();
+            if (requestVersion !== treeStateVersion) return;
             if (error) { alert('読込失敗: ' + error.message); } else if (data && data.graph_data) {
                 cy.json(data.graph_data); undoStack = [];
                 currentTreeOwnerId = userId;

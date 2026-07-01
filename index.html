@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ハッセ図エディタ（みんなの図 PIN対応版）</title>
+    <title>ジャグリング技ロードマップ＆遷移グラフ</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -19,6 +19,7 @@
         button.active-trans { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
         .btn-io { background-color: #8e44ad; }
         .btn-explore { background-color: #9b59b6; }
+        .btn-guide { background-color: #1abc9c; color: white; } /* ★使い方ガイド用の色を追加 */
         .btn-auth { background-color: #f39c12; color: white; }
         .btn-bookmark { background-color: #f39c12; color: white; }
         #user-info { color: white; font-size: 12px; display: none; margin-left: 8px; }
@@ -86,7 +87,7 @@
             </div>
             <button id="add-node-btn">➕ 技を追加</button>
         </div>
-        <button id="mode-prereq-btn">↙️ 前提線を引く</button>
+        <button id="mode-prereq-btn">↙️ 順序線を引く</button>
         <button id="mode-trans-btn">🔄 遷移線を引く</button>
         <button id="mode-delete-btn">🗑 タッチ消去</button>
         
@@ -95,6 +96,10 @@
         <button id="arrange-btn">✨ 整列</button>
         
         <button id="explore-btn" class="btn-explore">🌐 みんなの図を探す</button>
+        
+        <!-- ★ 使い方ガイドボタンを追加（クリックで別タブで開く） -->
+        <button id="guide-btn" class="btn-guide" onclick="window.open('guide.html', '_blank')">📖 使い方ガイド</button>
+
         <button id="share-btn" class="btn-explore" style="display: none;">🔗 共有</button>
 
         <button id="cloud-save-btn" class="btn-io" style="display: none;">☁️ クラウド保存</button>
@@ -147,8 +152,8 @@
     </div>
 
     <div id="explore-modal" class="floating-modal" style="max-height: 90vh; overflow-y: auto; max-width: 480px; width: 95%;">
-        <h3>🌐 みんなのハッセ図を探す</h3>
-        <p class="hint-text" style="text-align:center; margin-bottom:12px;">公開されている他の人のハッセ図を検索できます。公開図が見つからない場合は、Supabase 側の読み取りポリシーも確認してください。</p>
+        <h3>🌐 みんなのロードマップを探す</h3>
+        <p class="hint-text" style="text-align:center; margin-bottom:12px;">公開されている他の人のロードマップを検索できます。公開図が見つからない場合は、Supabase 側の読み取りポリシーも確認してください。</p>
         <div class="modal-field" style="display:flex; gap:8px;">
             <input type="text" id="explore-search-input" placeholder="タグ(#技名)、タイトル、図の中の技名で検索..." style="flex:1;">
             <button id="explore-execute-btn" class="modal-btn" style="width:auto; margin:0; padding:10px 16px;">検索</button>
@@ -512,9 +517,9 @@
                 document.getElementById('cloud-edit-select').value = 'none';
                 document.getElementById('cloud-pin-input').value = '';
                 document.getElementById('pin-input-container').style.display = 'none';
-                document.getElementById('cloud-title-input').value = (currentTreeTitle || '無題のハッセ図') + ' (コピー)';
+                document.getElementById('cloud-title-input').value = (currentTreeTitle || '無題のロードマップ') + ' (コピー)';
             } else {
-                document.getElementById('cloud-title-input').value = currentTreeTitle || '無題のハッセ図';
+                document.getElementById('cloud-title-input').value = currentTreeTitle || '無題のロードマップ';
                 document.getElementById('cloud-status-select').value = currentTreeStatus || 'private';
                 document.getElementById('cloud-edit-select').value = currentTreeEditPermission || 'none';
                 document.getElementById('cloud-pin-input').value = currentTreeEditPin || '';
@@ -720,7 +725,7 @@
 
             const shareUrl = window.location.href;
             if (navigator.share) {
-                navigator.share({ title: currentTreeTitle + 'のハッセ図', url: shareUrl }).catch(err => console.error('共有キャンセル:', err));
+                navigator.share({ title: currentTreeTitle + 'のロードマップ', url: shareUrl }).catch(err => console.error('共有キャンセル:', err));
             } else {
                 navigator.clipboard.writeText(shareUrl).then(() => alert('共有用URLをクリップボードにコピーしました！\n' + shareUrl)).catch(() => alert('コピーに失敗しました。ブラウザのURLバーから直接コピーしてください。'));
             }
@@ -1147,7 +1152,7 @@
                 if (!checkEditPermission()) return; // 編集ガード
                 if (!sourceNode) { sourceNode = target; sourceNode.addClass('selected-source'); } else {
                     if (currentMode === 'prereq') {
-                        if (sourceNode.id() === target.id()) return alert('前提技は自分自身に繋げません。'); const existing = cy.edges(`[source="${sourceNode.id()}"][target="${target.id()}"][edgeType="prereq"]`);
+                        if (sourceNode.id() === target.id()) return alert('順序技は自分自身に繋げません。'); const existing = cy.edges(`[source="${sourceNode.id()}"][target="${target.id()}"][edgeType="prereq"]`);
                         if (existing.length === 0) { const newEdge = cy.add({ group: 'edges', data: { id: 'edge_' + Date.now(), source: sourceNode.id(), target: target.id(), edgeType: 'prereq', createdAt: Date.now() } }); pushUndo('add', newEdge.jsons()); }
                     } else if (currentMode === 'trans') {
                         const transName = prompt('遷移技の名前（入り方など）:');
@@ -1184,7 +1189,7 @@
         });
         
         document.getElementById('local-save-btn').addEventListener('click', () => { 
-            const data = cy.json(); const jsonStr = JSON.stringify(data, null, 2); const blob = new Blob([jsonStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'juggling_hasse_data.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); 
+            const data = cy.json(); const jsonStr = JSON.stringify(data, null, 2); const blob = new Blob([jsonStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'juggling_roadmap_data.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); 
         });
         
         document.getElementById('file-input').addEventListener('change', (evt) => { 

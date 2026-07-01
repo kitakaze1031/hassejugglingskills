@@ -200,14 +200,14 @@
             <label for="cloud-edit-select">✏️ 共同編集権限</label>
             <select id="cloud-edit-select" style="color: #2c3e50; font-weight: bold; background-color: #fff;">
                 <option value="anyone">✅ 誰でも共同編集可</option>
-                <option value="approved">👥 承認した人のみ可 (要PIN)</option>
+                <option value="approved">👥 承認した人のみ可 (要PIN・削除ロック可)</option>
                 <option value="none" selected>❌ 共同編集不可 (自分だけ)</option>
             </select>
         </div>
         <div class="modal-field" id="pin-input-container" style="display: none;">
             <label for="cloud-pin-input">🔑 編集用PIN (4桁の数字)</label>
             <input type="text" id="cloud-pin-input" placeholder="例: 1234" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" style="letter-spacing: 4px; font-family: monospace; font-size: 18px;">
-            <p class="hint-text">半角数字で <b>4桁</b> を設定してください（例: 0000〜9999）。<br>他の人がこの図を編集・上書き保存する際に必要になります。</p>
+            <p class="hint-text">半角数字で <b>4桁</b> を設定してください（例: 0000〜9999）。<br>このPINを設定すると、図の編集だけでなく、クラウド保存した図の削除にも鍵をかけられます。</p>
         </div>
 
         <button id="cloud-save-confirm-btn" class="modal-btn">保存する</button>
@@ -770,7 +770,7 @@
         document.getElementById('cloud-load-btn').addEventListener('click', async () => {
             if (!currentUser) return alert('ログインしてください。');
             const btn = document.getElementById('cloud-load-btn'); btn.textContent = '取得中...';
-            const { data, error } = await sb.from('trees').select('title, status, tags, edit_permission').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
+            const { data, error } = await sb.from('trees').select('title, status, tags, edit_permission, edit_pin').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
             btn.textContent = '☁️ クラウド読込';
 
             if (error) return alert('取得失敗: ' + error.message); if (!data || data.length === 0) return alert('保存されたデータがありません。');
@@ -778,11 +778,27 @@
             data.forEach(item => {
                 const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '8px'; row.style.alignItems = 'center'; row.style.marginBottom = '4px';
                 let statusIcon = '🔒'; if (item.status === 'unlisted') statusIcon = '🔗'; if (item.status === 'public') statusIcon = '👁'; 
-                let editIcon = ''; if (item.edit_permission === 'anyone') editIcon = '✏️'; if (item.edit_permission === 'approved') editIcon = '👥';
+                let editIcon = '';
+                if (item.edit_permission === 'anyone') editIcon = '✏️';
+                if (item.edit_permission === 'approved') editIcon = '👥🔐';
                 const fileBtn = document.createElement('button'); fileBtn.className = 'modal-btn secondary'; fileBtn.style.textAlign = 'left'; fileBtn.style.margin = '0'; fileBtn.style.flex = '1'; fileBtn.textContent = `${statusIcon}${editIcon} ${item.title}`;
                 fileBtn.addEventListener('click', () => loadSpecificTree(item.title, currentUser.id));
                 const delBtn = document.createElement('button'); delBtn.textContent = '🗑'; delBtn.style.backgroundColor = '#e74c3c'; delBtn.style.padding = '12px'; delBtn.style.borderRadius = '8px'; delBtn.style.cursor = 'pointer'; delBtn.style.color = 'white'; delBtn.style.border = 'none';
-                delBtn.addEventListener('click', async (e) => { e.stopPropagation(); if (!confirm(`本当に「${item.title}」を削除しますか？`)) return; await sb.from('trees').delete().eq('user_id', currentUser.id).eq('title', item.title); document.getElementById('cloud-load-btn').click(); });
+                delBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (item.edit_permission === 'approved') {
+                        const rawPin = prompt(`🔐 この図は削除ロックされています。削除する場合は設定した4桁PINを入力してください:`);
+                        if (rawPin === null) return;
+                        const enteredPin = rawPin.replace(/[^0-9]/g, '').slice(0, 4);
+                        if (!/^[0-9]{4}$/.test(enteredPin) || enteredPin !== item.edit_pin) {
+                            return alert('PINが違います。削除を中止しました。');
+                        }
+                    } else {
+                        if (!confirm(`本当に「${item.title}」を削除しますか？`)) return;
+                    }
+                    await sb.from('trees').delete().eq('user_id', currentUser.id).eq('title', item.title);
+                    document.getElementById('cloud-load-btn').click();
+                });
                 row.appendChild(fileBtn); row.appendChild(delBtn); cloudLoadList.appendChild(row);
             });
             openOverlay(); cloudLoadModal.style.display = 'block';

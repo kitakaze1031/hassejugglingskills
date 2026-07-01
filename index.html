@@ -8,50 +8,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            height: 100dvh;
-            background-color: #f4f7f6;
-            overflow: hidden;
-        }
-
-        #toolbar {
-            background-color: #2c3e50;
-            padding: 10px;
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            white-space: nowrap;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            z-index: 10;
-            flex-shrink: 0;
-            min-height: 40px;
-            align-items: center;
-        }
-
+        html, body { margin: 0; padding: 0; font-family: sans-serif; display: flex; flex-direction: column; height: 100%; height: 100dvh; background-color: #f4f7f6; overflow: hidden; }
+        #toolbar { background-color: #2c3e50; padding: 10px; display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); z-index: 10; flex-shrink: 0; min-height: 40px; align-items: center; }
         #toolbar::-webkit-scrollbar { height: 4px; }
         #toolbar::-webkit-scrollbar-thumb { background: #7f8c8d; border-radius: 4px; }
-
-        button, select {
-            flex-shrink: 0;
-            padding: 10px 14px;
-            background-color: #34495e;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-            touch-action: manipulation;
-        }
-
+        button, select { flex-shrink: 0; padding: 10px 14px; background-color: #34495e; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; touch-action: manipulation; }
         button.active { background-color: #3498db; box-shadow: 0 0 8px #3498db; }
         button.active-delete { background-color: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
         button.active-prereq { background-color: #e67e22; box-shadow: 0 0 8px #e67e22; }
@@ -60,107 +21,47 @@
         .btn-explore { background-color: #9b59b6; }
         .btn-auth { background-color: #f39c12; color: white; }
         .btn-bookmark { background-color: #f39c12; color: white; }
-
         #user-info { color: white; font-size: 12px; display: none; margin-left: 8px; }
         #current-tree-info { color: #f1c40f; font-size: 13px; font-weight: bold; display: none; margin-left: 10px; margin-right: 10px; }
-
-        .add-group {
-            display: inline-flex;
-            align-items: center;
-            background-color: #34495e;
-            border-radius: 8px;
-            padding: 6px 8px;
-            flex-shrink: 0;
-            gap: 12px;
-        }
-
-        .color-palette-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(0, 0, 0, 0.15);
-            padding: 4px 8px;
-            border-radius: 6px;
-        }
-
+        .add-group { display: inline-flex; align-items: center; background-color: #34495e; border-radius: 8px; padding: 6px 8px; flex-shrink: 0; gap: 12px; }
+        .color-palette-container { display: flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.15); padding: 4px 8px; border-radius: 6px; }
         .color-palette { display: grid; grid-template-columns: repeat(10, 22px); gap: 4px; }
-
-        .color-swatch {
-            width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
-            border: 1px solid rgba(255, 255, 255, 0.4); box-sizing: border-box; transition: transform 0.1s;
-        }
+        .color-swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.4); box-sizing: border-box; transition: transform 0.1s; }
         .color-swatch:active { transform: scale(0.85); }
         .color-swatch.selected { border: 2px solid #fff; box-shadow: 0 0 0 2px #3498db; }
-
-        input[type="color"] {
-            width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px;
-            cursor: pointer; background: transparent; flex-shrink: 0;
-        }
-
-        input[type="text"], input[type="url"], input[type="date"], textarea, select {
-            width: 100%; box-sizing: border-box; border: 1px solid #cfd8dc; border-radius: 8px; padding: 10px; font-size: 14px;
-        }
-
+        input[type="color"] { width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; cursor: pointer; background: transparent; flex-shrink: 0; }
+        input[type="text"], input[type="url"], input[type="date"], textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #cfd8dc; border-radius: 8px; padding: 10px; font-size: 14px; }
         textarea { min-height: 90px; resize: vertical; }
-
         #group-name-input { width: 150px; min-width: 150px; background: #ffffff; color: #2c3e50; }
-
         #cy-wrap { position: relative; flex: 1; min-height: 0; }
         #cy { width: 100%; height: 100%; }
-
-        #group-legend {
-            position: absolute; right: 12px; bottom: 12px; z-index: 20;
-            background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 10px 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); min-width: 170px; max-width: min(70vw, 260px); font-size: 13px; color: #2c3e50;
-        }
+        #group-legend { position: absolute; right: 12px; bottom: 12px; z-index: 20; background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 10px 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); min-width: 170px; max-width: min(70vw, 260px); font-size: 13px; color: #2c3e50; }
         #group-legend h4 { margin: 0 0 8px 0; font-size: 13px; }
         #group-legend-list { display: flex; flex-direction: column; gap: 2px; }
-
         .legend-item { display: flex; align-items: center; gap: 8px; line-height: 1.3; padding: 6px; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
         .legend-item:hover { background-color: rgba(0, 0, 0, 0.08); }
         .legend-swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.15); flex-shrink: 0; }
         .legend-empty { color: #7f8c8d; padding: 4px; }
-
-        #modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 999;
-        }
-
-        .floating-modal {
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 20px; border-radius: 14px; width: 88%; max-width: 380px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); z-index: 1000;
-        }
-
+        #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 999; }
+        .floating-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 14px; width: 88%; max-width: 380px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); z-index: 1000; }
         .floating-modal h3 { margin: 0 0 15px 0; font-size: 16px; color: #333; text-align: center; }
         .modal-field { margin-bottom: 12px; }
         .modal-field label { display: block; font-size: 12px; color: #555; margin-bottom: 6px; font-weight: bold; }
-        
-        .modal-btn {
-            display: block; width: 100%; padding: 12px; margin-bottom: 10px;
-            background-color: #3498db; color: white; border: none; border-radius: 8px;
-            font-size: 14px; text-decoration: none; text-align: center; box-sizing: border-box; cursor: pointer;
-        }
+        .modal-btn { display: block; width: 100%; padding: 12px; margin-bottom: 10px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 14px; text-decoration: none; text-align: center; box-sizing: border-box; cursor: pointer; }
         .modal-btn.disabled { background-color: #bdc3c7; pointer-events: none; }
         .modal-btn.secondary { background-color: #16a085; }
         .close-btn { background-color: #e74c3c; margin-top: 15px; margin-bottom: 0; }
         .hint-text { margin: 4px 0 0 0; font-size: 11px; color: #607d8b; line-height: 1.4; }
-        
-        .search-result-item {
-            padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; background: #fafafa; cursor: pointer; transition: 0.2s;
-        }
+        .search-result-item { padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; background: #fafafa; cursor: pointer; transition: 0.2s; }
         .search-result-item:hover { background: #f0f0f0; border-color: #3498db; }
         .search-result-title { font-weight: bold; font-size: 14px; color: #2c3e50; margin-bottom: 4px; }
         .search-result-tags { font-size: 11px; color: #2980b9; margin-bottom: 4px; }
         .search-result-stats { font-size: 11px; color: #7f8c8d; }
-
         .tag-preset-section { margin-top: 8px; }
         .tag-preset-title { font-size: 11px; color: #555; font-weight: bold; margin: 8px 0 4px 0; display: flex; align-items: center; gap: 6px; }
         .tag-preset-title .count-badge { background: #bdc3c7; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 8px; font-weight: normal; }
-        .tag-chip-container {
-            display: flex; flex-wrap: wrap; gap: 5px; max-height: 110px; overflow-y: auto; padding: 6px; background: #f4f7f6; border-radius: 6px; border: 1px solid #e0e0e0;
-        }
-        .tag-chip {
-            display: inline-block; padding: 5px 10px; background: #fff; color: #2980b9; border: 1px solid #b3d4ec; border-radius: 14px; font-size: 12px; cursor: pointer; user-select: none; transition: 0.15s;
-        }
+        .tag-chip-container { display: flex; flex-wrap: wrap; gap: 5px; max-height: 110px; overflow-y: auto; padding: 6px; background: #f4f7f6; border-radius: 6px; border: 1px solid #e0e0e0; }
+        .tag-chip { display: inline-block; padding: 5px 10px; background: #fff; color: #2980b9; border: 1px solid #b3d4ec; border-radius: 14px; font-size: 12px; cursor: pointer; user-select: none; transition: 0.15s; }
         .tag-chip:hover { background: #2980b9; color: #fff; border-color: #2980b9; }
         .tag-chip.purpose { color: #c0392b; border-color: #f1b8b1; }
         .tag-chip.purpose:hover { background: #c0392b; color: #fff; border-color: #c0392b; }
@@ -290,7 +191,6 @@
             </select>
         </div>
         
-        <!-- ★ ここにPIN用の入力欄を追加しました ★ -->
         <div class="modal-field">
             <label for="cloud-edit-select">✏️ 共同編集権限</label>
             <select id="cloud-edit-select" style="color: #2c3e50; font-weight: bold; background-color: #fff;">
@@ -369,7 +269,7 @@
         let currentTreeTitle = '';
         let currentTreeStatus = 'private';
         let currentTreeEditPermission = 'none';
-        let currentTreeEditPin = ''; // PIN用の変数追加
+        let currentTreeEditPin = ''; // PIN用の変数
         let currentTreeTags = '';
         let currentTreeAuthor = ''; 
         let currentTreeOwnerId = null;
@@ -403,8 +303,51 @@
 
         function closeCloudSaveModal() { document.getElementById('cloud-save-modal').style.display = 'none'; closeOverlayIfUnused(); }
 
+        // ★★★ 編集権限のチェックとPINポップアップの関数 ★★★
+        function checkEditPermission() {
+            if (!isReadOnlyTree) return true; // すでに解除済み、または自分の図
+
+            if (!currentUser) {
+                alert('図を編集するにはログインが必要です。');
+                return false;
+            }
+
+            if (currentTreeEditPermission === 'none') {
+                alert('この図は作成者により「共同編集不可」に設定されています。\n編集・上書きはできません。');
+                return false;
+            }
+
+            if (currentTreeEditPermission === 'approved') {
+                const rawInput = prompt('🔒 【編集ロック解除】\nこの図を編集・上書きするには、作成者が設定した「4桁の暗証番号(PIN)」を入力してください。');
+                if (rawInput !== null) {
+                    const enteredPin = rawInput.replace(/[^0-9]/g, '').slice(0, 4);
+                    if (enteredPin === currentTreeEditPin && /^[0-9]{4}$/.test(enteredPin)) {
+                        alert('ロックが解除されました！図の編集・上書き保存が可能です。');
+                        isReadOnlyTree = false;
+                        setReadOnlyUI(false);
+                        document.getElementById('current-tree-info').textContent = `📄 ${currentTreeTitle} (by ${currentTreeAuthor})`;
+                        
+                        // 次回以降は聞かれないようにローカルストレージに記憶
+                        let savedPins = JSON.parse(localStorage.getItem('approved_pins') || '{}');
+                        let treeKey = currentTreeOwnerId + '_' + currentTreeTitle;
+                        savedPins[treeKey] = enteredPin;
+                        localStorage.setItem('approved_pins', JSON.stringify(savedPins));
+                        
+                        return true;
+                    } else {
+                        alert('暗証番号が間違っています。');
+                        return false;
+                    }
+                }
+                return false;
+            }
+
+            return false;
+        }
+
         function setReadOnlyUI(readOnly) {
             isReadOnlyTree = readOnly;
+            
             const cloudSaveBtn = document.getElementById('cloud-save-btn');
             const addNodeBtn = document.getElementById('add-node-btn');
             const prereqBtn = document.getElementById('mode-prereq-btn');
@@ -413,25 +356,38 @@
             const undoBtn = document.getElementById('undo-btn');
             const arrangeBtn = document.getElementById('arrange-btn');
             const viewBtn = document.getElementById('mode-view-btn');
+            
             const controls = [viewBtn, addNodeBtn, prereqBtn, transBtn, deleteBtn, undoBtn, arrangeBtn];
+            
+            // ★ポイント：承認制でロックされている時はボタンを「押せる」ようにしておく（押した時にパスワードを聞くため）
+            const strictlyReadOnly = readOnly && currentTreeEditPermission !== 'approved';
+
             controls.forEach(btn => {
                 if (!btn) return;
-                btn.disabled = readOnly;
-                btn.style.opacity = readOnly ? '0.5' : '1';
-                btn.style.cursor = readOnly ? 'not-allowed' : 'pointer';
+                btn.disabled = strictlyReadOnly;
+                btn.style.opacity = strictlyReadOnly ? '0.5' : '1';
+                btn.style.cursor = strictlyReadOnly ? 'not-allowed' : 'pointer';
             });
-            const shouldDisableSave = readOnly || (!currentUser && !isNewDraft);
-            cloudSaveBtn.disabled = shouldDisableSave;
-            cloudSaveBtn.style.opacity = shouldDisableSave ? '0.5' : '1';
-            cloudSaveBtn.style.cursor = shouldDisableSave ? 'not-allowed' : 'pointer';
-            if (readOnly) {
+
+            if (!currentUser && !isNewDraft) {
+                cloudSaveBtn.disabled = true;
+                cloudSaveBtn.style.opacity = '0.5';
+                cloudSaveBtn.style.cursor = 'not-allowed';
+            } else {
+                cloudSaveBtn.disabled = strictlyReadOnly;
+                cloudSaveBtn.style.opacity = strictlyReadOnly ? '0.5' : '1';
+                cloudSaveBtn.style.cursor = strictlyReadOnly ? 'not-allowed' : 'pointer';
+            }
+
+            if (strictlyReadOnly) {
                 cloudSaveBtn.textContent = '☁️ 保存不可';
-            } else if (currentUser) {
-                cloudSaveBtn.textContent = '☁️ クラウド保存';
+            } else if (readOnly && currentTreeEditPermission === 'approved') {
+                cloudSaveBtn.textContent = '☁️ 保存 (要PIN)';
             } else {
                 cloudSaveBtn.textContent = '☁️ クラウド保存';
             }
-            if (readOnly) setMode('view');
+
+            if (strictlyReadOnly) setMode('view');
         }
 
         function setCloudPermissionControlsDisabled(disabled) {
@@ -480,7 +436,7 @@
             currentTreeTitle = '';
             currentTreeStatus = 'private';
             currentTreeEditPermission = 'none';
-            currentTreeEditPin = ''; // リセット
+            currentTreeEditPin = '';
             currentTreeTags = '';
             currentTreeAuthor = '';
             currentTreeOwnerId = null;
@@ -509,15 +465,6 @@
             const newUrl = new URL(window.location.origin + window.location.pathname);
             window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
 
-            const cloudSaveBtn = document.getElementById('cloud-save-btn'); if (cloudSaveBtn) { cloudSaveBtn.disabled = false; cloudSaveBtn.style.opacity = '1'; cloudSaveBtn.style.cursor = 'pointer'; }
-
-            const addNodeBtn = document.getElementById('add-node-btn'); if (addNodeBtn) { addNodeBtn.disabled = false; addNodeBtn.style.opacity = '1'; addNodeBtn.style.cursor = 'pointer'; }
-            const modePrereqBtn = document.getElementById('mode-prereq-btn'); if (modePrereqBtn) { modePrereqBtn.disabled = false; modePrereqBtn.style.opacity = '1'; modePrereqBtn.style.cursor = 'pointer'; }
-            const modeTransBtn = document.getElementById('mode-trans-btn'); if (modeTransBtn) { modeTransBtn.disabled = false; modeTransBtn.style.opacity = '1'; modeTransBtn.style.cursor = 'pointer'; }
-            const modeDeleteBtn = document.getElementById('mode-delete-btn'); if (modeDeleteBtn) { modeDeleteBtn.disabled = false; modeDeleteBtn.style.opacity = '1'; modeDeleteBtn.style.cursor = 'pointer'; }
-            const undoBtn = document.getElementById('undo-btn'); if (undoBtn) { undoBtn.disabled = false; undoBtn.style.opacity = '1'; undoBtn.style.cursor = 'pointer'; }
-            const arrangeBtn = document.getElementById('arrange-btn'); if (arrangeBtn) { arrangeBtn.disabled = false; arrangeBtn.style.opacity = '1'; arrangeBtn.style.cursor = 'pointer'; }
-
             normalizeGraphData();
             updateGroupLegend();
             setMode('view');
@@ -527,13 +474,13 @@
 
         document.getElementById('new-diagram-btn').addEventListener('click', startNewDiagram);
 
-        // ★ PIN入力を4桁数字のみに制限（半角数字以外は自動除去）
+        // PIN入力を4桁数字のみに制限
         document.getElementById('cloud-pin-input').addEventListener('input', (e) => {
             const digitsOnly = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
             if (e.target.value !== digitsOnly) e.target.value = digitsOnly;
         });
 
-        // ★ セレクトボックス変更時のPIN入力欄の表示切替
+        // セレクトボックス変更時のPIN入力欄の表示切替
         document.getElementById('cloud-edit-select').addEventListener('change', (e) => {
             const pinContainer = document.getElementById('pin-input-container');
             if (e.target.value === 'approved') {
@@ -545,7 +492,15 @@
 
         document.getElementById('cloud-save-btn').addEventListener('click', () => {
             if (!currentUser) return alert('ログインしてください。');
-            if (isReadOnlyTree) return alert('この図は読み取り専用のため、保存できません。');
+            
+            // ★ロック状態なら、保存ボタンを押したときにもPINを聞いてくる
+            if (isReadOnlyTree) {
+                if (currentTreeEditPermission === 'approved') {
+                    if (!checkEditPermission()) return;
+                } else {
+                    return alert('この図は読み取り専用のため、保存できません。');
+                }
+            }
 
             const isSavingOtherUserTree = Boolean(currentTreeOwnerId && currentTreeOwnerId !== currentUser.id);
             const isCollaborativeEdit = isSavingOtherUserTree && (currentTreeEditPermission === 'anyone' || currentTreeEditPermission === 'approved');
@@ -664,23 +619,36 @@
             
             const finalStatus = isCollaborativeEdit ? (currentTreeStatus || 'private') : (isSavingOtherUserTree ? forcedStatus : document.getElementById('cloud-status-select').value);
             const finalEditPerm = isCollaborativeEdit ? (currentTreeEditPermission || 'none') : (isSavingOtherUserTree ? forcedEditPerm : document.getElementById('cloud-edit-select').value);
-            
-            // ★ PINの保存
-            const finalPin = (finalEditPerm === 'approved' && !isCollaborativeEdit && !isSavingOtherUserTree) ? document.getElementById('cloud-pin-input').value.trim() : currentTreeEditPin;
             const finalTitle = isCollaborativeEdit ? currentTreeTitle : (isSavingOtherUserTree ? await buildCopySaveTitle(title) : title);
+
+            let finalPin = currentTreeEditPin;
+            
+            // ★ 作成者が保存時に「承認した人のみ」を選んだ場合、ここで確実に聞いてくる
+            if (!isCollaborativeEdit && !isSavingOtherUserTree) {
+                if (finalEditPerm === 'approved') {
+                    finalPin = document.getElementById('cloud-pin-input').value.trim();
+                    if (!/^[0-9]{4}$/.test(finalPin)) {
+                        let newPin = prompt('【共同編集用 暗証番号の設定】\nこの図を他の人が編集できるようにするための、\n「半角数字4桁」のパスワードを設定してください。', currentTreeEditPin || '');
+                        if (newPin === null) {
+                            saveButton.textContent = '保存する';
+                            return; // キャンセル
+                        }
+                        newPin = newPin.replace(/[^0-9]/g, '').slice(0, 4);
+                        if (!/^[0-9]{4}$/.test(newPin)) {
+                            saveButton.textContent = '保存する';
+                            return alert('4桁の数字が正しく入力されませんでした。保存をキャンセルしました。');
+                        }
+                        document.getElementById('cloud-pin-input').value = newPin;
+                        finalPin = newPin;
+                    }
+                } else {
+                    finalPin = ''; // approved以外ならリセット
+                }
+            }
 
             if (isCollaborativeEdit && title !== currentTreeTitle) {
                 saveButton.textContent = '保存する';
                 return alert('共同編集可の図は現在のタイトルで保存してください。');
-            }
-
-            // ★ PINバリデーション：承認制のときは必ず4桁の数字を必須にする
-            if (finalEditPerm === 'approved' && !isCollaborativeEdit && !isSavingOtherUserTree) {
-                if (!/^[0-9]{4}$/.test(finalPin)) {
-                    saveButton.textContent = '保存する';
-                    document.getElementById('cloud-pin-input').focus();
-                    return alert('「承認した人のみ編集可」を選んだ場合は、\n編集用PINとして半角数字4桁（0000〜9999）を必ず入力してください。');
-                }
             }
 
             saveButton.textContent = '保存中...';
@@ -695,13 +663,12 @@
                     graph_data: graphData,
                     status: finalStatus,
                     edit_permission: finalEditPerm,
-                    edit_pin: finalPin, // ★追加
+                    edit_pin: finalPin,
                     tags: tags,
                     author_name: authorName,
                     updated_at: new Date().toISOString()
                 }).eq('user_id', targetUserId).eq('title', finalTitle);
             } else {
-                // 新規作成のとき、かぶりチェック
                 const { data: duplicateCheck } = await sb.from('trees').select('title').eq('user_id', targetUserId).eq('title', finalTitle).maybeSingle();
                 if (duplicateCheck) {
                     saveButton.textContent = '保存する';
@@ -714,7 +681,7 @@
                     graph_data: graphData,
                     status: finalStatus,
                     edit_permission: finalEditPerm,
-                    edit_pin: finalPin, // ★追加
+                    edit_pin: finalPin,
                     tags: tags,
                     author_name: authorName
                 });
@@ -812,10 +779,9 @@
             openOverlay(); cloudLoadModal.style.display = 'block';
         });
 
-        // ★ 特定の図を読み込む処理 (PIN認証を追加)
+        // ★ 特定の図を読み込む処理
         async function loadSpecificTree(title, userId) {
             const requestVersion = ++treeStateVersion;
-            // edit_pin も取得するように修正
             const baseQuery = sb.from('trees').select('graph_data, status, tags, author_name, edit_permission, edit_pin').eq('user_id', userId).eq('title', title);
             const query = (currentUser && currentUser.id === userId) ? baseQuery : baseQuery.eq('status', 'public');
             const { data, error } = await query.single();
@@ -827,32 +793,34 @@
                 isNewDraft = false;
                 currentTreeStatus = data.status || 'private';
                 currentTreeEditPermission = data.edit_permission || 'none';
-                currentTreeEditPin = data.edit_pin || ''; // PINをセット
+                currentTreeEditPin = data.edit_pin || ''; 
                 currentTreeAuthor = data.author_name || '名無しさん';
                 
-                // ★ 編集権限の判定とPIN認証
                 let canEditThisTree = false;
                 if (currentUser && userId === currentUser.id) {
                     canEditThisTree = true; // 自分の図
                 } else if (currentUser && currentTreeEditPermission === 'anyone') {
                     canEditThisTree = true; // 誰でも編集可
-                } else if (currentUser && currentTreeEditPermission === 'approved') {
-                    // 承認制の場合、PIN入力を求める（4桁の数字）
-                    const rawInput = prompt(`【承認制モード】\nこの図を共同編集するには、作者が設定した\n編集用PIN（半角数字4桁）を入力してください。\n\n※閲覧のみの場合は「キャンセル」を押してください。`);
-                    if (rawInput !== null) {
-                        const enteredPin = rawInput.replace(/[^0-9]/g, '').slice(0, 4);
-                        if (/^[0-9]{4}$/.test(enteredPin) && enteredPin === currentTreeEditPin) {
-                            canEditThisTree = true;
-                            alert('PINが確認されました。図を編集・上書き保存できます。');
-                        } else {
-                            alert('PINが正しくありません。閲覧モードで開きます。\n（半角数字4桁で入力してください）');
-                        }
+                } else if (currentTreeEditPermission === 'approved') {
+                    // ★読み込み時にはすぐにパスワードを聞かない
+                    // 以前に正解したことがあるかローカルストレージだけチェック
+                    let savedPins = JSON.parse(localStorage.getItem('approved_pins') || '{}');
+                    let treeKey = userId + '_' + title;
+                    
+                    if (currentUser && savedPins[treeKey] && savedPins[treeKey] === currentTreeEditPin) {
+                        canEditThisTree = true; // 自動でロック解除
+                    } else {
+                        canEditThisTree = false; // まだロック状態（アクションを起こした時に聞く）
                     }
                 }
 
                 setReadOnlyUI(!canEditThisTree);
                 if (!canEditThisTree) {
-                    document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor}) [閲覧のみ]`;
+                    if (currentTreeEditPermission === 'approved') {
+                        document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor}) [🔒PINで編集可]`;
+                    } else {
+                        document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor}) [閲覧のみ]`;
+                    }
                 } else {
                     document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor})`;
                 }
@@ -888,8 +856,8 @@
             const { data, error } = await sb.from('trees').select('user_id, title, status, edit_permission, tags, graph_data, updated_at, author_name').eq('status', 'public').order('updated_at', { ascending: false }).limit(50); 
             btn.textContent = '検索';
 
-            if (error) { list.innerHTML = `<p style="color:#e74c3c;">エラーが発生しました: ${error.message}</p><p style="font-size:12px; color:#7f8c8d; margin-top:6px;">公開図が見つからない場合は、Supabase の RLS で public 行の読み取りを許可しているか確認してください。</p>`; return; }
-            if (!data || data.length === 0) { list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">公開されている図が見つかりませんでした。<br>Supabase の RLS で public の読み取りを許可しているか確認してください。</p>'; return; }
+            if (error) { list.innerHTML = `<p style="color:#e74c3c;">エラーが発生しました: ${error.message}</p>`; return; }
+            if (!data || data.length === 0) { list.innerHTML = '<p style="text-align:center; color:#7f8c8d; font-size:13px;">公開されている図が見つかりませんでした。</p>'; return; }
 
             const tokens = rawQuery.split(/\s+/).filter(t => t.length > 0); const tagTokens = tokens.filter(t => t.startsWith('#')).map(t => t.toLowerCase()); const wordTokens = tokens.filter(t => !t.startsWith('#')).map(t => t.toLowerCase());
 
@@ -1099,13 +1067,14 @@
             }); openOverlay(); linkModal.style.display = 'block';
         }
 
+        // ★ 編集系アクションをすべて `checkEditPermission()` でガード
         function openNodeEditor(node) {
-            if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。');
+            if (!checkEditPermission()) return;
             editingNode = node; document.getElementById('node-name-input').value = node.data('rawName') || ''; document.getElementById('node-url-input').value = node.data('url') || ''; modalPalette.setSelectedColors(node.data('colors') || []); openOverlay(); nodeEditor.style.display = 'block';
         }
 
         function openTransEditor(edge) {
-            if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。');
+            if (!checkEditPermission()) return;
             editingEdge = edge; const transitions = edge.data('transitions') || []; currentEditingTransitions = JSON.parse(JSON.stringify(transitions));
             const container = document.getElementById('trans-inputs-container'); container.innerHTML = ''; activeTransPalettes = [];
             transitions.forEach((t, i) => {
@@ -1117,14 +1086,14 @@
         }
 
         function saveNodeEditor() {
-            if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。');
+            if (!checkEditPermission()) return;
             if (!editingNode) return; const oldData = editingNode.json(); const newName = document.getElementById('node-name-input').value.trim(); if (!newName) return alert('技名を入力してください。');
             const newUrl = document.getElementById('node-url-input').value.trim(); const newColors = modalPalette.getSelectedColors(); const colorsToSave = newColors.length > 0 ? newColors : ['#95a5a6'];
             editingNode.data({ rawName: newName, url: newUrl, colors: colorsToSave, color: colorsToSave[0] }); updateNodeDisplay(editingNode); applyNodePieStyle(editingNode); pushUndo('edit', { ele: editingNode, oldData: oldData }); updateGroupLegend(); closeNodeEditor();
         }
 
         function saveTransEditor() {
-            if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。');
+            if (!checkEditPermission()) return;
             if (!editingEdge) return; const oldData = editingEdge.json(); const container = document.getElementById('trans-inputs-container'); const nameFields = container.querySelectorAll('.trans-name-field'); const urlFields = container.querySelectorAll('.trans-url-field'); const newTransitions = []; let isValid = true;
             nameFields.forEach((field, idx) => {
                 const nameVal = field.value.trim(); const urlVal = urlFields[idx].value.trim(); const colorsVal = activeTransPalettes[idx].getSelectedColors(); const colorsToSave = colorsVal.length > 0 ? colorsVal : ['#95a5a6']; const originalTs = currentEditingTransitions[idx] ? currentEditingTransitions[idx].createdAt : Date.now();
@@ -1134,11 +1103,16 @@
             editingEdge.data({ transitions: newTransitions, label: buildTransitionLabel(newTransitions), hasTransUrl: newTransitions.some(t => t.url) }); applyEdgeGradientStyle(editingEdge); pushUndo('edit', { ele: editingEdge, oldData: oldData }); updateGroupLegend(); closeTransEditor();
         }
 
-        btns.view.addEventListener('click', () => { if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。'); setMode('view'); }); btns.prereq.addEventListener('click', () => { if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。'); setMode('prereq'); }); btns.trans.addEventListener('click', () => { if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。'); setMode('trans'); }); btns.delete.addEventListener('click', () => { if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。'); setMode('delete'); });
-        document.getElementById('node-save-btn').addEventListener('click', saveNodeEditor); document.getElementById('trans-save-btn').addEventListener('click', saveTransEditor);
+        // ★ 各種ボタンのアクションもガード
+        btns.view.addEventListener('click', () => { setMode('view'); }); // 閲覧への切り替えは常に許可
+        btns.prereq.addEventListener('click', () => { if (!checkEditPermission()) return; setMode('prereq'); });
+        btns.trans.addEventListener('click', () => { if (!checkEditPermission()) return; setMode('trans'); });
+        btns.delete.addEventListener('click', () => { if (!checkEditPermission()) return; setMode('delete'); });
+        document.getElementById('node-save-btn').addEventListener('click', saveNodeEditor);
+        document.getElementById('trans-save-btn').addEventListener('click', saveTransEditor);
 
         document.getElementById('add-node-btn').addEventListener('click', () => {
-            if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。');
+            if (!checkEditPermission()) return;
             const rawName = prompt('技名を入力してください (改行も使えます):'); if (!rawName) return;
             const selectedColors = toolbarPalette.getSelectedColors(); const colorsToSave = selectedColors.length > 0 ? selectedColors : ['#3498db']; const normalizedName = rawName.replace(/\\n/g, '\n'); const newId = 'node_' + Date.now();
             const newNode = cy.add({ group: 'nodes', data: { id: newId, label: normalizedName, rawName: normalizedName, url: '', colors: colorsToSave, color: colorsToSave[0], createdAt: Date.now() }, position: { x: cy.width() / 2, y: cy.height() / 2 } });
@@ -1152,11 +1126,14 @@
             lastTapTarget = target; tapTimeout = setTimeout(() => { tapTimeout = null; lastTapTarget = null; handleSingleTap(target); }, DOUBLE_TAP_DELAY);
         });
 
-        function handleEdit(target) { if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。'); if (target.isNode()) return openNodeEditor(target); if (target.isEdge() && target.data('edgeType') === 'trans') return openTransEditor(target); }
+        function handleEdit(target) { if (!checkEditPermission()) return; if (target.isNode()) return openNodeEditor(target); if (target.isEdge() && target.data('edgeType') === 'trans') return openTransEditor(target); }
 
         function handleSingleTap(target) {
             if (target === cy) { cy.nodes().removeClass('highlight-duplicate'); if (sourceNode) { sourceNode.removeClass('selected-source'); sourceNode = null; } return; }
-            if (currentMode === 'delete') { const removedJsons = target.jsons(); target.remove(); pushUndo('remove', removedJsons); updateGroupLegend(); return; }
+            if (currentMode === 'delete') { 
+                if (!checkEditPermission()) return; // 念のためガード
+                const removedJsons = target.jsons(); target.remove(); pushUndo('remove', removedJsons); updateGroupLegend(); return; 
+            }
             if (currentMode === 'view') {
                 if (target.isNode()) {
                     cy.nodes().removeClass('highlight-duplicate'); const nodeName = target.data('rawName'); if (nodeName) { cy.nodes().forEach(n => { if (n.data('rawName') === nodeName && n.id() !== target.id()) n.addClass('highlight-duplicate'); }); }
@@ -1167,6 +1144,7 @@
                 return;
             }
             if ((currentMode === 'prereq' || currentMode === 'trans') && target.isNode()) {
+                if (!checkEditPermission()) return; // 編集ガード
                 if (!sourceNode) { sourceNode = target; sourceNode.addClass('selected-source'); } else {
                     if (currentMode === 'prereq') {
                         if (sourceNode.id() === target.id()) return alert('前提技は自分自身に繋げません。'); const existing = cy.edges(`[source="${sourceNode.id()}"][target="${target.id()}"][edgeType="prereq"]`);
@@ -1192,6 +1170,7 @@
         modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) { closeModal(); closeNodeEditor(); closeTransEditor(); closeCloudLoadModal(); closeCloudSaveModal(); closeGroupListModal(); closeFilterModal(); closeExploreModal(); closeBookmarkLoadModal(); } });
 
         document.getElementById('undo-btn').addEventListener('click', () => {
+            if (!checkEditPermission()) return; // 編集ガード
             if (undoStack.length === 0) return alert('これ以上戻せません。'); const lastAction = undoStack.pop();
             if (lastAction.action === 'add') { lastAction.data.forEach(d => { const ele = cy.getElementById(d.data.id); if (ele.length > 0) ele.remove(); }); }
             else if (lastAction.action === 'remove') { const restored = cy.add(lastAction.data); restored.nodes().forEach(n => applyNodePieStyle(n)); restored.edges('[edgeType="trans"]').forEach(e => applyEdgeGradientStyle(e)); }
@@ -1199,7 +1178,10 @@
             normalizeGraphData(); updateGroupLegend();
         });
 
-        document.getElementById('arrange-btn').addEventListener('click', () => { cy.layout({ name: 'breadthfirst', directed: true, padding: 50, spacingFactor: 1.5 }).run(); });
+        document.getElementById('arrange-btn').addEventListener('click', () => { 
+            if (!checkEditPermission()) return; // 編集ガード
+            cy.layout({ name: 'breadthfirst', directed: true, padding: 50, spacingFactor: 1.5 }).run(); 
+        });
         
         document.getElementById('local-save-btn').addEventListener('click', () => { 
             const data = cy.json(); const jsonStr = JSON.stringify(data, null, 2); const blob = new Blob([jsonStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'juggling_hasse_data.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); 
@@ -1220,6 +1202,5 @@
             }
         });
     </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

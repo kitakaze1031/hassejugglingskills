@@ -200,14 +200,18 @@
             <label for="cloud-edit-select">✏️ 共同編集権限</label>
             <select id="cloud-edit-select" style="color: #2c3e50; font-weight: bold; background-color: #fff;">
                 <option value="anyone">✅ 誰でも共同編集可</option>
-                <option value="approved">👥 承認した人のみ可 (要PIN・削除ロック可)</option>
+                <option value="approved">👥 承認した人のみ可 (要PIN)</option>
                 <option value="none" selected>❌ 共同編集不可 (自分だけ)</option>
             </select>
         </div>
+        <div class="modal-field">
+            <label><input type="checkbox" id="cloud-delete-lock-checkbox"> 🔐 削除ロックを有効にする</label>
+            <p class="hint-text">保存後、この図を削除する際にPIN入力が必要になります。誤って消してしまうのを防げます。</p>
+        </div>
         <div class="modal-field" id="pin-input-container" style="display: none;">
-            <label for="cloud-pin-input">🔑 編集用PIN (4桁の数字)</label>
+            <label for="cloud-pin-input">🔑 ロック用PIN (4桁の数字)</label>
             <input type="text" id="cloud-pin-input" placeholder="例: 1234" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" style="letter-spacing: 4px; font-family: monospace; font-size: 18px;">
-            <p class="hint-text">半角数字で <b>4桁</b> を設定してください（例: 0000〜9999）。<br>このPINを設定すると、図の編集だけでなく、クラウド保存した図の削除にも鍵をかけられます。</p>
+            <p class="hint-text">半角数字で <b>4桁</b> を設定してください（例: 0000〜9999）。<br>このPINを設定すると、保存した図を削除する際にロックをかけられます。</p>
         </div>
 
         <button id="cloud-save-confirm-btn" class="modal-btn">保存する</button>
@@ -403,9 +407,14 @@
             const statusSelect = document.getElementById('cloud-status-select');
             const editSelect = document.getElementById('cloud-edit-select');
             const pinInput = document.getElementById('cloud-pin-input');
+            const deleteLockCheckbox = document.getElementById('cloud-delete-lock-checkbox');
             statusSelect.disabled = disabled;
             editSelect.disabled = disabled;
             pinInput.disabled = disabled;
+            if (deleteLockCheckbox) {
+                deleteLockCheckbox.disabled = disabled;
+                deleteLockCheckbox.style.opacity = disabled ? '0.6' : '1';
+            }
             statusSelect.style.opacity = disabled ? '0.6' : '1';
             editSelect.style.opacity = disabled ? '0.6' : '1';
             pinInput.style.opacity = disabled ? '0.6' : '1';
@@ -492,10 +501,27 @@
         // セレクトボックス変更時のPIN入力欄の表示切替
         document.getElementById('cloud-edit-select').addEventListener('change', (e) => {
             const pinContainer = document.getElementById('pin-input-container');
+            const deleteLockCheckbox = document.getElementById('cloud-delete-lock-checkbox');
             if (e.target.value === 'approved') {
                 pinContainer.style.display = 'block';
+                if (deleteLockCheckbox) deleteLockCheckbox.checked = true;
             } else {
-                pinContainer.style.display = 'none';
+                if (deleteLockCheckbox && deleteLockCheckbox.checked) {
+                    pinContainer.style.display = 'block';
+                } else {
+                    pinContainer.style.display = 'none';
+                }
+            }
+        });
+        document.getElementById('cloud-delete-lock-checkbox').addEventListener('change', (e) => {
+            const pinContainer = document.getElementById('pin-input-container');
+            if (e.target.checked) {
+                pinContainer.style.display = 'block';
+            } else {
+                const editSelect = document.getElementById('cloud-edit-select');
+                if (editSelect && editSelect.value !== 'approved') {
+                    pinContainer.style.display = 'none';
+                }
             }
         });
 
@@ -527,11 +553,20 @@
                 document.getElementById('cloud-status-select').value = currentTreeStatus || 'private';
                 document.getElementById('cloud-edit-select').value = currentTreeEditPermission || 'none';
                 document.getElementById('cloud-pin-input').value = currentTreeEditPin || '';
-                
-                if (currentTreeEditPermission === 'approved') {
+                const deleteLockCheckbox = document.getElementById('cloud-delete-lock-checkbox');
+                if (deleteLockCheckbox) {
+                    deleteLockCheckbox.checked = Boolean(currentTreeEditPin);
+                }
+                if (currentTreeEditPermission === 'approved' || (deleteLockCheckbox && deleteLockCheckbox.checked)) {
                     document.getElementById('pin-input-container').style.display = 'block';
                 } else {
                     document.getElementById('pin-input-container').style.display = 'none';
+                }
+            }
+            if (shouldForcePrivateCopy) {
+                const deleteLockCheckbox = document.getElementById('cloud-delete-lock-checkbox');
+                if (deleteLockCheckbox) {
+                    deleteLockCheckbox.checked = false;
                 }
             }
 
@@ -631,13 +666,17 @@
             const finalTitle = isCollaborativeEdit ? currentTreeTitle : (isSavingOtherUserTree ? await buildCopySaveTitle(title) : title);
 
             let finalPin = currentTreeEditPin;
-            
-            // ★ 作成者が保存時に「承認した人のみ」を選んだ場合、ここで確実に聞いてくる
+            if (isSavingOtherUserTree && !isCollaborativeEdit) {
+                finalPin = ''; // 他人の図をコピー保存する場合、元のPIN/削除ロックは引き継がない
+            }
+            const deleteLockChecked = document.getElementById('cloud-delete-lock-checkbox')?.checked;
+
             if (!isCollaborativeEdit && !isSavingOtherUserTree) {
-                if (finalEditPerm === 'approved') {
-                    finalPin = document.getElementById('cloud-pin-input').value.trim();
+                if (deleteLockChecked || finalEditPerm === 'approved') {
+                    const pinValue = document.getElementById('cloud-pin-input').value.trim();
+                    finalPin = pinValue;
                     if (!/^[0-9]{4}$/.test(finalPin)) {
-                        let newPin = prompt('【共同編集用 暗証番号の設定】\nこの図を他の人が編集できるようにするための、\n「半角数字4桁」のパスワードを設定してください。', currentTreeEditPin || '');
+                        let newPin = prompt('【削除ロック用PINの設定】\nこの図を削除する際に必要となる、\n「半角数字4桁」のPINを設定してください。', currentTreeEditPin || '');
                         if (newPin === null) {
                             saveButton.textContent = '保存する';
                             return; // キャンセル
@@ -651,7 +690,7 @@
                         finalPin = newPin;
                     }
                 } else {
-                    finalPin = ''; // approved以外ならリセット
+                    finalPin = ''; // ロックがない場合はPINをリセット
                 }
             }
 
@@ -781,12 +820,13 @@
                 let editIcon = '';
                 if (item.edit_permission === 'anyone') editIcon = '✏️';
                 if (item.edit_permission === 'approved') editIcon = '👥🔐';
-                const fileBtn = document.createElement('button'); fileBtn.className = 'modal-btn secondary'; fileBtn.style.textAlign = 'left'; fileBtn.style.margin = '0'; fileBtn.style.flex = '1'; fileBtn.textContent = `${statusIcon}${editIcon} ${item.title}`;
+                const lockIcon = item.edit_pin ? '🔐' : '';
+                const fileBtn = document.createElement('button'); fileBtn.className = 'modal-btn secondary'; fileBtn.style.textAlign = 'left'; fileBtn.style.margin = '0'; fileBtn.style.flex = '1'; fileBtn.textContent = `${statusIcon}${editIcon}${lockIcon} ${item.title}`;
                 fileBtn.addEventListener('click', () => loadSpecificTree(item.title, currentUser.id));
                 const delBtn = document.createElement('button'); delBtn.textContent = '🗑'; delBtn.style.backgroundColor = '#e74c3c'; delBtn.style.padding = '12px'; delBtn.style.borderRadius = '8px'; delBtn.style.cursor = 'pointer'; delBtn.style.color = 'white'; delBtn.style.border = 'none';
                 delBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (item.edit_permission === 'approved') {
+                    if (item.edit_pin) {
                         const rawPin = prompt(`🔐 この図は削除ロックされています。削除する場合は設定した4桁PINを入力してください:`);
                         if (rawPin === null) return;
                         const enteredPin = rawPin.replace(/[^0-9]/g, '').slice(0, 4);

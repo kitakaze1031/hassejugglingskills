@@ -266,6 +266,7 @@
 
     <div id="cloud-save-modal" class="floating-modal" style="max-height: 90vh; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; max-width: 440px; width: 94%;">
         <h3>クラウドに保存</h3>
+        <p id="cloud-save-copy-note" class="hint-text" style="display:none; margin-top:-6px; margin-bottom:10px; color:#c0392b; font-weight:bold;">※ 他人の図を開いているため、保存すると自分用のコピーとして保存されます。元の図は変更されません。</p>
         <div class="modal-field"><label for="cloud-title-input">ファイル名</label><input type="text" id="cloud-title-input" placeholder="ファイル名を入力"></div>
         <div class="modal-field"><label for="cloud-author-input">作成者名</label><input type="text" id="cloud-author-input" placeholder="あなたの名前を入力（空欄なら名無しさん）"></div>
         <div class="modal-field">
@@ -363,6 +364,7 @@
         let currentTreeTags = '';
         let currentTreeAuthor = ''; 
         let currentTreeOwnerId = null; // 現在開いている図の作成者ID
+        let isReadOnlyTree = false;
 
         sb.auth.onAuthStateChange((event, session) => {
             currentUser = session?.user || null;
@@ -389,6 +391,32 @@
 
         function closeCloudSaveModal() { document.getElementById('cloud-save-modal').style.display = 'none'; closeOverlayIfUnused(); }
 
+        function setReadOnlyUI(readOnly) {
+            isReadOnlyTree = readOnly;
+            const cloudSaveBtn = document.getElementById('cloud-save-btn');
+            const addNodeBtn = document.getElementById('add-node-btn');
+            const prereqBtn = document.getElementById('mode-prereq-btn');
+            const transBtn = document.getElementById('mode-trans-btn');
+            const deleteBtn = document.getElementById('mode-delete-btn');
+            const undoBtn = document.getElementById('undo-btn');
+            const arrangeBtn = document.getElementById('arrange-btn');
+            const controls = [addNodeBtn, prereqBtn, transBtn, deleteBtn, undoBtn, arrangeBtn];
+            controls.forEach(btn => {
+                btn.disabled = readOnly;
+                btn.style.opacity = readOnly ? '0.5' : '1';
+                btn.style.cursor = readOnly ? 'not-allowed' : 'pointer';
+            });
+            cloudSaveBtn.disabled = readOnly;
+            cloudSaveBtn.style.opacity = readOnly ? '0.5' : '1';
+            cloudSaveBtn.style.cursor = readOnly ? 'not-allowed' : 'pointer';
+            if (readOnly) {
+                cloudSaveBtn.textContent = '☁️ 保存不可';
+            } else if (currentUser) {
+                cloudSaveBtn.textContent = '☁️ クラウド保存';
+            }
+            if (readOnly) setMode('view');
+        }
+
         function setCloudPermissionControlsDisabled(disabled) {
             const statusSelect = document.getElementById('cloud-status-select');
             const editSelect = document.getElementById('cloud-edit-select');
@@ -398,11 +426,33 @@
             editSelect.style.opacity = disabled ? '0.6' : '1';
         }
 
+        async function buildCopySaveTitle(baseTitle) {
+            let candidate = (baseTitle || '').trim();
+            if (!candidate) candidate = '無題のハッセ図';
+            if (!candidate.endsWith(' (コピー)')) candidate = `${candidate} (コピー)`;
+
+            const { data, error } = await sb.from('trees').select('title').eq('user_id', currentUser.id).eq('title', candidate);
+            if (error) throw error;
+            if (!data || data.length === 0) return candidate;
+
+            let index = 2;
+            const baseName = candidate.replace(/ \(コピー(?: \d+)?\)$/, '');
+            while (true) {
+                const alt = `${baseName} (コピー ${index})`;
+                const { data: altData, error: altError } = await sb.from('trees').select('title').eq('user_id', currentUser.id).eq('title', alt);
+                if (altError) throw altError;
+                if (!altData || altData.length === 0) return alt;
+                index += 1;
+            }
+        }
+
         document.getElementById('cloud-save-btn').addEventListener('click', () => {
             if (!currentUser) return alert('ログインしてください。');
-            
-            const isSavingOtherUserTree = currentTreeOwnerId && currentTreeOwnerId !== currentUser.id;
-            const shouldForcePrivateCopy = isSavingOtherUserTree || (currentTreeOwnerId && currentTreeOwnerId !== currentUser.id && currentTreeEditPermission !== 'anyone');
+            if (isReadOnlyTree) return alert('この図は読み取り専用のため、保存できません。');
+
+            const isSavingOtherUserTree = Boolean(currentTreeOwnerId && currentTreeOwnerId !== currentUser.id);
+            const isCollaborativeEdit = isSavingOtherUserTree && currentTreeEditPermission === 'anyone';
+            const shouldForcePrivateCopy = isSavingOtherUserTree && !isCollaborativeEdit;
 
             if (shouldForcePrivateCopy) {
                 alert('この図は他人の図のため、公開設定や共同編集権限は変更できません。\n自分の図としてコピー保存します。');
@@ -415,7 +465,14 @@
                 document.getElementById('cloud-edit-select').value = currentTreeEditPermission || 'none';
             }
 
-            setCloudPermissionControlsDisabled(isSavingOtherUserTree || shouldForcePrivateCopy);
+            setCloudPermissionControlsDisabled(isSavingOtherUserTree);
+            const copyNote = document.getElementById('cloud-save-copy-note');
+            if (shouldForcePrivateCopy) {
+                copyNote.style.display = 'block';
+                copyNote.textContent = '※ 他人の図を開いているため、保存すると自分用のコピーとして保存されます。元の図は変更されません。';
+            } else {
+                copyNote.style.display = 'none';
+            }
             document.getElementById('cloud-tags-input').value = currentTreeTags || '';
             const defaultAuthor = currentTreeAuthor || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
             document.getElementById('cloud-author-input').value = defaultAuthor;
@@ -474,76 +531,73 @@
         document.getElementById('cloud-save-confirm-btn').addEventListener('click', async () => {
             const title = document.getElementById('cloud-title-input').value.trim();
             const tags = document.getElementById('cloud-tags-input').value.trim();
-            const status = document.getElementById('cloud-status-select').value;
-            const editPerm = document.getElementById('cloud-edit-select').value;
             const authorName = document.getElementById('cloud-author-input').value.trim() || '名無しさん';
 
             if (!title) return alert('ファイル名を入力してください。');
-            
-            // 自分の図ではない場合の上書きチェック
-            let targetUserId = currentUser.id;
-            if (currentTreeOwnerId && currentTreeOwnerId !== currentUser.id) {
-                if (currentTreeEditPermission === 'anyone') {
-                    targetUserId = currentTreeOwnerId; // 誰でも編集可なら元の持ち主に保存
-                } else {
-                    // 基本的に最初のチェックで弾くが、念のため
-                    return alert('この図は上書き保存できません。別のファイル名で保存してください。');
-                }
+
+            const isSavingOtherUserTree = Boolean(currentUser && currentTreeOwnerId && currentTreeOwnerId !== currentUser.id);
+            const isCollaborativeEdit = isSavingOtherUserTree && currentTreeEditPermission === 'anyone';
+            const forcedStatus = 'private';
+            const forcedEditPerm = 'none';
+            const targetUserId = isCollaborativeEdit ? currentTreeOwnerId : currentUser.id;
+            const finalStatus = isCollaborativeEdit ? (currentTreeStatus || 'private') : (isSavingOtherUserTree ? forcedStatus : document.getElementById('cloud-status-select').value);
+            const finalEditPerm = isCollaborativeEdit ? (currentTreeEditPermission || 'none') : (isSavingOtherUserTree ? forcedEditPerm : document.getElementById('cloud-edit-select').value);
+            const finalTitle = isCollaborativeEdit ? currentTreeTitle : (isSavingOtherUserTree ? await buildCopySaveTitle(title) : title);
+
+            if (isCollaborativeEdit && title !== currentTreeTitle) {
+                btn.textContent = '保存する';
+                return alert('共同編集可の図は現在のタイトルで保存してください。');
             }
 
-           const btn = document.getElementById('cloud-save-confirm-btn'); btn.textContent = '保存中...';
+            const btn = document.getElementById('cloud-save-confirm-btn'); btn.textContent = '保存中...';
             const graphData = cy.json();
-            
-            // 現在開いている図と同じファイル名・同じ作成者の場合を「上書き」と判定
-            const isOverwrite = (currentTreeOwnerId === targetUserId && currentTreeTitle === title);
-            
+
+            const isOverwrite = (isCollaborativeEdit && currentTreeTitle === title) || (!isSavingOtherUserTree && currentTreeOwnerId === targetUserId && currentTreeTitle === title);
             let result;
             if (isOverwrite) {
-                // 上書き保存 (UPDATE): status と edit_permission は保存（上書き）しない
-                result = await sb.from('trees').update({ 
-                    graph_data: graphData, 
-                    tags: tags, 
+                result = await sb.from('trees').update({
+                    graph_data: graphData,
+                    status: finalStatus,
+                    edit_permission: finalEditPerm,
+                    tags: tags,
                     author_name: authorName,
                     updated_at: new Date().toISOString()
-                }).eq('user_id', targetUserId).eq('title', title);
+                }).eq('user_id', targetUserId).eq('title', finalTitle);
             } else {
-                // 新規作成・別名保存 (INSERT): 公開設定などもすべて保存
-                result = await sb.from('trees').insert({ 
-                    user_id: targetUserId, 
-                    title: title, 
-                    graph_data: graphData, 
-                    status: status, 
-                    edit_permission: editPerm,
-                    tags: tags, 
-                    author_name: authorName 
+                result = await sb.from('trees').insert({
+                    user_id: targetUserId,
+                    title: finalTitle,
+                    graph_data: graphData,
+                    status: finalStatus,
+                    edit_permission: finalEditPerm,
+                    tags: tags,
+                    author_name: authorName
                 });
             }
-            
+
             const { error } = result;
 
             btn.textContent = '保存する';
             if (error) { console.error(error); alert('保存に失敗しました: ' + error.message); } else {
-                currentTreeTitle = title; currentTreeTags = tags; 
-                currentTreeStatus = status; currentTreeEditPermission = editPerm; 
+                currentTreeTitle = finalTitle; currentTreeTags = tags;
+                currentTreeStatus = finalStatus; currentTreeEditPermission = finalEditPerm;
                 currentTreeAuthor = authorName; currentTreeOwnerId = targetUserId;
-                
-                document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor})`;
+
+                document.getElementById('current-tree-info').textContent = `📄 ${finalTitle} (by ${currentTreeAuthor})`;
                 document.getElementById('current-tree-info').style.display = 'inline-block';
 
-                // URL更新
                 const newUrl = new URL(window.location.origin + window.location.pathname);
                 newUrl.searchParams.set('uid', targetUserId);
-                newUrl.searchParams.set('t', title);
+                newUrl.searchParams.set('t', finalTitle);
                 window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
 
-                // 公開・限定公開なら共有ボタンを表示
-                if (status === 'public' || status === 'unlisted') {
+                if (finalStatus === 'public' || finalStatus === 'unlisted') {
                     document.getElementById('share-btn').style.display = 'inline-block';
                 } else {
                     document.getElementById('share-btn').style.display = 'none';
                 }
 
-                closeCloudSaveModal(); alert(`クラウドに「${title}」として保存しました！`);
+                closeCloudSaveModal(); alert(`クラウドに「${finalTitle}」として保存しました！`);
             }
         });
 
@@ -626,8 +680,13 @@
                 currentTreeStatus = data.status || 'private';
                 currentTreeEditPermission = data.edit_permission || 'none';
                 currentTreeAuthor = data.author_name || '名無しさん';
-                
-                document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor})`;
+                const canEditThisTree = Boolean(currentUser) && (userId === currentUser.id || currentTreeEditPermission === 'anyone');
+                setReadOnlyUI(!canEditThisTree);
+                if (!canEditThisTree) {
+                    document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor}) [閲覧のみ]`;
+                } else {
+                    document.getElementById('current-tree-info').textContent = `📄 ${title} (by ${currentTreeAuthor})`;
+                }
                 document.getElementById('current-tree-info').style.display = 'inline-block';
 
                 // 共有ボタンの表示判定
@@ -638,13 +697,13 @@
                 }
 
                 // 共同編集権限チェック
-                if (currentUser && userId !== currentUser.id) { 
+                if (currentUser && userId !== currentUser.id) {
                     if (currentTreeEditPermission === 'none') {
-                        alert('【閲覧モード】\nこの図は読み取り専用です。上書き保存はできませんが、別名で保存すれば自分のデータとして編集可能です。'); 
+                        alert('【閲覧モード】\nこの図は読み取り専用です。保存や編集はできません。');
                     } else if (currentTreeEditPermission === 'approved') {
-                        alert('【承認制モード】\nこの図は承認されたユーザーのみ上書き編集可能です。（現在は仮の警告です）');
+                        alert('【承認制モード】\nこの図は承認されたユーザーのみ編集可能です。');
                     } else if (currentTreeEditPermission === 'anyone') {
-                        alert('【共同編集モード】\nこの図は誰でも編集可能です！変更して保存すると上書きされます。');
+                        alert('【共同編集モード】\nこの図は共同編集可能です。');
                     }
                 }
 
@@ -885,9 +944,13 @@
             }); openOverlay(); linkModal.style.display = 'block';
         }
 
-        function openNodeEditor(node) { editingNode = node; document.getElementById('node-name-input').value = node.data('rawName') || ''; document.getElementById('node-url-input').value = node.data('url') || ''; modalPalette.setSelectedColors(node.data('colors') || []); openOverlay(); nodeEditor.style.display = 'block'; }
+        function openNodeEditor(node) {
+            if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。');
+            editingNode = node; document.getElementById('node-name-input').value = node.data('rawName') || ''; document.getElementById('node-url-input').value = node.data('url') || ''; modalPalette.setSelectedColors(node.data('colors') || []); openOverlay(); nodeEditor.style.display = 'block';
+        }
 
         function openTransEditor(edge) {
+            if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。');
             editingEdge = edge; const transitions = edge.data('transitions') || []; currentEditingTransitions = JSON.parse(JSON.stringify(transitions));
             const container = document.getElementById('trans-inputs-container'); container.innerHTML = ''; activeTransPalettes = [];
             transitions.forEach((t, i) => {
@@ -899,12 +962,14 @@
         }
 
         function saveNodeEditor() {
+            if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。');
             if (!editingNode) return; const oldData = editingNode.json(); const newName = document.getElementById('node-name-input').value.trim(); if (!newName) return alert('技名を入力してください。');
             const newUrl = document.getElementById('node-url-input').value.trim(); const newColors = modalPalette.getSelectedColors(); const colorsToSave = newColors.length > 0 ? newColors : ['#95a5a6'];
             editingNode.data({ rawName: newName, url: newUrl, colors: colorsToSave, color: colorsToSave[0] }); updateNodeDisplay(editingNode); applyNodePieStyle(editingNode); pushUndo('edit', { ele: editingNode, oldData: oldData }); updateGroupLegend(); closeNodeEditor();
         }
 
         function saveTransEditor() {
+            if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。');
             if (!editingEdge) return; const oldData = editingEdge.json(); const container = document.getElementById('trans-inputs-container'); const nameFields = container.querySelectorAll('.trans-name-field'); const urlFields = container.querySelectorAll('.trans-url-field'); const newTransitions = []; let isValid = true;
             nameFields.forEach((field, idx) => {
                 const nameVal = field.value.trim(); const urlVal = urlFields[idx].value.trim(); const colorsVal = activeTransPalettes[idx].getSelectedColors(); const colorsToSave = colorsVal.length > 0 ? colorsVal : ['#95a5a6']; const originalTs = currentEditingTransitions[idx] ? currentEditingTransitions[idx].createdAt : Date.now();
@@ -914,10 +979,11 @@
             editingEdge.data({ transitions: newTransitions, label: buildTransitionLabel(newTransitions), hasTransUrl: newTransitions.some(t => t.url) }); applyEdgeGradientStyle(editingEdge); pushUndo('edit', { ele: editingEdge, oldData: oldData }); updateGroupLegend(); closeTransEditor();
         }
 
-        btns.view.addEventListener('click', () => setMode('view')); btns.prereq.addEventListener('click', () => setMode('prereq')); btns.trans.addEventListener('click', () => setMode('trans')); btns.delete.addEventListener('click', () => setMode('delete'));
+        btns.view.addEventListener('click', () => { if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。'); setMode('view'); }); btns.prereq.addEventListener('click', () => { if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。'); setMode('prereq'); }); btns.trans.addEventListener('click', () => { if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。'); setMode('trans'); }); btns.delete.addEventListener('click', () => { if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。'); setMode('delete'); });
         document.getElementById('node-save-btn').addEventListener('click', saveNodeEditor); document.getElementById('trans-save-btn').addEventListener('click', saveTransEditor);
 
         document.getElementById('add-node-btn').addEventListener('click', () => {
+            if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。');
             const rawName = prompt('技名を入力してください (改行も使えます):'); if (!rawName) return;
             const selectedColors = toolbarPalette.getSelectedColors(); const colorsToSave = selectedColors.length > 0 ? selectedColors : ['#3498db']; const normalizedName = rawName.replace(/\\n/g, '\n'); const newId = 'node_' + Date.now();
             const newNode = cy.add({ group: 'nodes', data: { id: newId, label: normalizedName, rawName: normalizedName, url: '', colors: colorsToSave, color: colorsToSave[0], createdAt: Date.now() }, position: { x: cy.width() / 2, y: cy.height() / 2 } });
@@ -931,7 +997,7 @@
             lastTapTarget = target; tapTimeout = setTimeout(() => { tapTimeout = null; lastTapTarget = null; handleSingleTap(target); }, DOUBLE_TAP_DELAY);
         });
 
-        function handleEdit(target) { if (target.isNode()) return openNodeEditor(target); if (target.isEdge() && target.data('edgeType') === 'trans') return openTransEditor(target); }
+        function handleEdit(target) { if (isReadOnlyTree) return alert('この図は読み取り専用のため、編集できません。'); if (target.isNode()) return openNodeEditor(target); if (target.isEdge() && target.data('edgeType') === 'trans') return openTransEditor(target); }
 
         function handleSingleTap(target) {
             if (target === cy) { cy.nodes().removeClass('highlight-duplicate'); if (sourceNode) { sourceNode.removeClass('selected-source'); sourceNode = null; } return; }

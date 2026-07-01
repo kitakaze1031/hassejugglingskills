@@ -264,7 +264,7 @@
         <button class="modal-btn close-btn" onclick="closeExploreModal()">閉じる</button>
     </div>
 
-    <div id="cloud-save-modal" class="floating-modal">
+    <div id="cloud-save-modal" class="floating-modal" style="max-height: 90vh; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; max-width: 440px; width: 94%;">
         <h3>クラウドに保存</h3>
         <div class="modal-field"><label for="cloud-title-input">ファイル名</label><input type="text" id="cloud-title-input" placeholder="ファイル名を入力"></div>
         <div class="modal-field"><label for="cloud-author-input">作成者名</label><input type="text" id="cloud-author-input" placeholder="あなたの名前を入力（空欄なら名無しさん）"></div>
@@ -480,18 +480,35 @@
                 }
             }
 
-            const btn = document.getElementById('cloud-save-confirm-btn'); btn.textContent = '保存中...';
+           const btn = document.getElementById('cloud-save-confirm-btn'); btn.textContent = '保存中...';
             const graphData = cy.json();
             
-            const { data, error } = await sb.from('trees').upsert({ 
-                user_id: targetUserId, 
-                title: title, 
-                graph_data: graphData, 
-                status: status, 
-                edit_permission: editPerm,
-                tags: tags, 
-                author_name: authorName 
-            }, { onConflict: 'user_id,title' });
+            // 現在開いている図と同じファイル名・同じ作成者の場合を「上書き」と判定
+            const isOverwrite = (currentTreeOwnerId === targetUserId && currentTreeTitle === title);
+            
+            let result;
+            if (isOverwrite) {
+                // 上書き保存 (UPDATE): status と edit_permission は保存（上書き）しない
+                result = await sb.from('trees').update({ 
+                    graph_data: graphData, 
+                    tags: tags, 
+                    author_name: authorName,
+                    updated_at: new Date().toISOString()
+                }).eq('user_id', targetUserId).eq('title', title);
+            } else {
+                // 新規作成・別名保存 (INSERT): 公開設定などもすべて保存
+                result = await sb.from('trees').insert({ 
+                    user_id: targetUserId, 
+                    title: title, 
+                    graph_data: graphData, 
+                    status: status, 
+                    edit_permission: editPerm,
+                    tags: tags, 
+                    author_name: authorName 
+                });
+            }
+            
+            const { error } = result;
 
             btn.textContent = '保存する';
             if (error) { console.error(error); alert('保存に失敗しました: ' + error.message); } else {

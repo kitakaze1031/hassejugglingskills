@@ -7,44 +7,115 @@
     <title>ジャグリング技ロードマップ＆遷移グラフ</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         html, body { margin: 0; padding: 0; font-family: sans-serif; display: flex; flex-direction: column; height: 100%; height: 100dvh; background-color: #f4f7f6; overflow: hidden; }
-        #toolbar { background-color: #2c3e50; padding: 10px; display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); z-index: 10; flex-shrink: 0; min-height: 40px; align-items: center; }
-        #toolbar::-webkit-scrollbar { height: 4px; }
-        #toolbar::-webkit-scrollbar-thumb { background: #7f8c8d; border-radius: 4px; }
-        button, select { flex-shrink: 0; padding: 10px 14px; background-color: #34495e; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; touch-action: manipulation; }
-        button.active { background-color: #3498db; box-shadow: 0 0 8px #3498db; }
-        button.active-delete { background-color: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
-        button.active-prereq { background-color: #e67e22; box-shadow: 0 0 8px #e67e22; }
-        button.active-trans { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
-        .btn-io { background-color: #8e44ad; }
-        .btn-explore { background-color: #9b59b6; }
-        .btn-guide { background-color: #1abc9c; color: white; } /* ★使い方ガイド用の色を追加 */
-        .btn-auth { background-color: #f39c12; color: white; }
-        .btn-bookmark { background-color: #f39c12; color: white; }
-        #user-info { color: white; font-size: 12px; display: none; margin-left: 8px; }
-        #current-tree-info { color: #f1c40f; font-size: 13px; font-weight: bold; display: none; margin-left: 10px; margin-right: 10px; }
-        .add-group { display: inline-flex; align-items: center; background-color: #34495e; border-radius: 8px; padding: 6px 8px; flex-shrink: 0; gap: 12px; }
-        .color-palette-container { display: flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.15); padding: 4px 8px; border-radius: 6px; }
+        
+        /* 🎨 ツールバーを折り返し式に変更（スマホ対応） */
+        #toolbar { 
+            padding: 10px; 
+            display: flex; 
+            gap: 8px; 
+            flex-wrap: wrap; /* 横スクロールをやめて折り返す */
+            z-index: 10; 
+            flex-shrink: 0; 
+            align-items: center; 
+            background-color: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* 🎨 ボタンとセレクトの基本デザインをモダンに（タップ領域拡大） */
+        button, select { 
+            appearance: none;
+            -webkit-appearance: none;
+            flex-shrink: 0; 
+            padding: 10px 14px; 
+            border-radius: 8px; 
+            font-size: 14px; 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            touch-action: manipulation; 
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            font-weight: 600;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        button:hover { background-color: #e2e8f0; }
+        button:active { transform: scale(0.96); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+        button.active { background-color: #eff6ff !important; color: #2563eb !important; border-color: #bfdbfe !important; box-shadow: none !important; }
+        button.active-delete { background-color: #fef2f2 !important; color: #dc2626 !important; border-color: #fecaca !important; box-shadow: none !important; }
+        button.active-prereq { background-color: #fff7ed !important; color: #ea580c !important; border-color: #ffedd5 !important; box-shadow: none !important; }
+        button.active-trans { background-color: #f0fdf4 !important; color: #16a34a !important; border-color: #bbf7d0 !important; box-shadow: none !important; }
+
+        .btn-io, .btn-explore, .btn-guide, .btn-auth, .btn-bookmark { background-color: #ffffff !important; color: #475569 !important; }
+
+        #user-info { color: #333; font-size: 12px; display: none; margin-left: 8px; }
+        #current-tree-info { color: #f39c12; font-size: 13px; font-weight: bold; display: none; margin-left: 10px; margin-right: 10px; }
+        .add-group { display: inline-flex; align-items: center; background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 8px; flex-shrink: 0; gap: 12px; }
+        .color-palette-container { display: flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.05); padding: 4px 8px; border-radius: 6px; }
         .color-palette { display: grid; grid-template-columns: repeat(10, 22px); gap: 4px; }
-        .color-swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.4); box-sizing: border-box; transition: transform 0.1s; }
+        .color-swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0, 0, 0, 0.1); box-sizing: border-box; transition: transform 0.1s; }
         .color-swatch:active { transform: scale(0.85); }
         .color-swatch.selected { border: 2px solid #fff; box-shadow: 0 0 0 2px #3498db; }
         input[type="color"] { width: 32px; height: 32px; padding: 0; border: none; border-radius: 6px; cursor: pointer; background: transparent; flex-shrink: 0; }
-        input[type="text"], input[type="url"], input[type="date"], textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #cfd8dc; border-radius: 8px; padding: 10px; font-size: 14px; }
+        
+        input[type="text"], input[type="url"], input[type="date"], textarea, select { 
+            width: 100%; box-sizing: border-box; border-radius: 8px; padding: 10px; font-size: 14px; 
+            border: 1px solid #cbd5e1; transition: all 0.2s ease;
+        }
+        input[type="text"]:focus, input[type="url"]:focus, textarea:focus, select:focus {
+            outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
         textarea { min-height: 90px; resize: vertical; }
         #group-name-input { width: 150px; min-width: 150px; background: #ffffff; color: #2c3e50; }
         #cy-wrap { position: relative; flex: 1; min-height: 0; }
         #cy { width: 100%; height: 100%; }
-        #group-legend { position: absolute; right: 12px; bottom: 12px; z-index: 20; background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 10px 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); min-width: 170px; max-width: min(70vw, 260px); font-size: 13px; color: #2c3e50; }
+        
+        #group-legend { position: absolute; right: 12px; top: 12px; z-index: 20; background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 10px 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); min-width: 170px; max-width: min(70vw, 260px); font-size: 13px; color: #2c3e50; max-height: 40vh; overflow-y: auto; }
         #group-legend h4 { margin: 0 0 8px 0; font-size: 13px; }
         #group-legend-list { display: flex; flex-direction: column; gap: 2px; }
         .legend-item { display: flex; align-items: center; gap: 8px; line-height: 1.3; padding: 6px; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
         .legend-item:hover { background-color: rgba(0, 0, 0, 0.08); }
         .legend-swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.15); flex-shrink: 0; }
         .legend-empty { color: #7f8c8d; padding: 4px; }
+
+        /* 🎨 フローティングアクション（右下固定ボタン群） */
+        #floating-actions {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 50;
+        }
+        #floating-actions button {
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #ffffff;
+            color: #34495e;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: none;
+            font-size: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        #floating-actions button.primary {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+        }
+
         #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 999; }
-        .floating-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 14px; width: 88%; max-width: 380px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); z-index: 1000; }
+        .floating-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 14px; width: 88%; max-width: 380px; z-index: 1000; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border: 1px solid #f1f5f9; }
         .floating-modal h3 { margin: 0 0 15px 0; font-size: 16px; color: #333; text-align: center; }
         .modal-field { margin-bottom: 12px; }
         .modal-field label { display: block; font-size: 12px; color: #555; margin-bottom: 6px; font-weight: bold; }
@@ -53,11 +124,13 @@
         .modal-btn.secondary { background-color: #16a085; }
         .close-btn { background-color: #e74c3c; margin-top: 15px; margin-bottom: 0; }
         .hint-text { margin: 4px 0 0 0; font-size: 11px; color: #607d8b; line-height: 1.4; }
+        
         .search-result-item { padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; background: #fafafa; cursor: pointer; transition: 0.2s; }
         .search-result-item:hover { background: #f0f0f0; border-color: #3498db; }
         .search-result-title { font-weight: bold; font-size: 14px; color: #2c3e50; margin-bottom: 4px; }
         .search-result-tags { font-size: 11px; color: #2980b9; margin-bottom: 4px; }
         .search-result-stats { font-size: 11px; color: #7f8c8d; }
+        
         .tag-preset-section { margin-top: 8px; }
         .tag-preset-title { font-size: 11px; color: #555; font-weight: bold; margin: 8px 0 4px 0; display: flex; align-items: center; gap: 6px; }
         .tag-preset-title .count-badge { background: #bdc3c7; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 8px; font-weight: normal; }
@@ -69,51 +142,50 @@
         .tag-chip.existing { color: #16a085; border-color: #a3dccd; }
         .tag-chip.existing:hover { background: #16a085; color: #fff; border-color: #16a085; }
         .tag-chip.active { background: #2c3e50!important; color: #fff!important; border-color: #2c3e50!important; }
-        .tag-toggle-btn { background: none; border: none; color: #2980b9; font-size: 12px; cursor: pointer; padding: 2px 6px; text-decoration: underline; margin-left: auto; }
+        .tag-toggle-btn { background: none; border: none; color: #2980b9; font-size: 12px; cursor: pointer; padding: 2px 6px; text-decoration: underline; margin-left: auto; box-shadow: none; border-radius:0; }
         .tag-empty-msg { font-size: 11px; color: #95a5a6; padding: 6px; text-align: center; width: 100%; }
     </style>
 </head>
 
 <body>
     <div id="toolbar">
-        <button id="mode-view-btn" class="active">👆 閲覧・リンク</button>
+        <button id="mode-view-btn" class="active"><i class="fas fa-hand-pointer"></i> 閲覧</button>
         <div class="add-group">
             <div class="color-palette-container">
                 <div id="toolbar-color-palette" class="color-palette"></div>
                 <input type="color" id="node-color" value="#3498db" title="カスタムカラーを選択">
             </div>
             <div>
-                <input type="text" id="group-name-input" placeholder="グループ名（選択色）">
+                <input type="text" id="group-name-input" placeholder="グループ名">
             </div>
-            <button id="add-node-btn">➕ 技を追加</button>
+            <button id="add-node-btn" style="background-color: #3b82f6; color: white; border-color: #2563eb;"><i class="fas fa-plus"></i> 技</button>
         </div>
-        <button id="mode-prereq-btn">↙️ 順序線を引く</button>
-        <button id="mode-trans-btn">🔄 遷移線を引く</button>
-        <button id="mode-delete-btn">🗑 タッチ消去</button>
+        <button id="mode-prereq-btn"><i class="fas fa-arrow-down"></i> 順序線</button>
+        <button id="mode-trans-btn"><i class="fas fa-exchange-alt"></i> 遷移線</button>
+        <button id="mode-delete-btn"><i class="fas fa-eraser"></i> 消去</button>
         
-        <button id="filter-btn">🔍 絞り込み</button>
-        <button id="undo-btn">↩️ 戻る</button>
-        <button id="arrange-btn">✨ 整列</button>
+        <button id="filter-btn"><i class="fas fa-filter"></i> 絞り込み</button>
+        <button id="undo-btn"><i class="fas fa-undo"></i> 戻る</button>
+        <button id="arrange-btn"><i class="fas fa-magic"></i> 整列</button>
         
-        <button id="explore-btn" class="btn-explore">🌐 みんなの図を探す</button>
-        
-        <!-- ★ 使い方ガイドボタンを追加（クリックで別タブで開く） -->
-        <button id="guide-btn" class="btn-guide" onclick="window.open('guide.html', '_blank')">📖 使い方ガイド</button>
+        <button id="explore-btn" class="btn-explore"><i class="fas fa-globe"></i> 探す</button>
+        <button id="guide-btn" class="btn-guide" onclick="window.open('guide.html', '_blank')"><i class="fas fa-book"></i> ガイド</button>
 
-        <button id="share-btn" class="btn-explore" style="display: none;">🔗 共有</button>
+        <button id="share-btn" class="btn-explore" style="display: none;"><i class="fas fa-share-alt"></i> 共有</button>
 
-        <button id="cloud-save-btn" class="btn-io" style="display: none;">☁️ クラウド保存</button>
-        <button id="cloud-load-btn" class="btn-io" style="display: none;">☁️ クラウド読込</button>
-        <button id="bookmark-list-btn" class="btn-bookmark" style="display: none;">🔖 お気に入り</button>
-        <button id="new-diagram-btn" class="btn-io" onclick="startNewDiagram()">🆕 新しく作る</button>
-        <button id="local-save-btn" class="btn-io">💾 ローカル保存</button>
-        <button id="local-load-btn" class="btn-io" onclick="document.getElementById('file-input').click()">📂 ローカル読込</button>
+        <button id="cloud-save-btn" class="btn-io" style="display: none;"><i class="fas fa-cloud-upload-alt"></i> 保存</button>
+        <button id="cloud-load-btn" class="btn-io" style="display: none;"><i class="fas fa-cloud-download-alt"></i> 読込</button>
+        <button id="bookmark-list-btn" class="btn-bookmark" style="display: none;"><i class="fas fa-bookmark"></i></button>
+        
+        <button id="new-diagram-btn" class="btn-io" onclick="startNewDiagram()"><i class="fas fa-file"></i> 新規</button>
+        <button id="local-save-btn" class="btn-io" title="ローカル保存"><i class="fas fa-save"></i></button>
+        <button id="local-load-btn" class="btn-io" onclick="document.getElementById('file-input').click()" title="ローカル読込"><i class="fas fa-folder-open"></i></button>
         <input type="file" id="file-input" style="display: none;" accept=".json">
 
         <span id="current-tree-info"></span>
 
-        <button id="login-btn" class="btn-auth">🔑 Googleログイン</button>
-        <button id="logout-btn" class="btn-auth" style="display: none;">🚪 ログアウト</button>
+        <button id="login-btn" class="btn-auth"><i class="fab fa-google"></i> ログイン</button>
+        <button id="logout-btn" class="btn-auth" style="display: none;"><i class="fas fa-sign-out-alt"></i></button>
         <span id="user-info"></span>
     </div>
 
@@ -122,6 +194,21 @@
         <div id="group-legend">
             <h4>グループ表示（タップで一覧）</h4>
             <div id="group-legend-list"></div>
+        </div>
+
+        <div id="floating-actions">
+            <button id="select-successors-btn" class="primary" title="選択した技から派生する技をすべて選択">
+                <i class="fas fa-project-diagram"></i>
+            </button>
+            <button id="select-all-btn" title="すべての技を選択">
+                <i class="fas fa-check-double"></i>
+            </button>
+            <button id="deselect-all-btn" title="選択を解除">
+                <i class="fas fa-times"></i>
+            </button>
+            <button id="fit-btn" title="全体を表示">
+                <i class="fas fa-expand"></i>
+            </button>
         </div>
     </div>
 
@@ -153,7 +240,7 @@
 
     <div id="explore-modal" class="floating-modal" style="max-height: 90vh; overflow-y: auto; max-width: 480px; width: 95%;">
         <h3>🌐 みんなのロードマップを探す</h3>
-        <p class="hint-text" style="text-align:center; margin-bottom:12px;">公開されている他の人のロードマップを検索できます。公開図が見つからない場合は、Supabase 側の読み取りポリシーも確認してください。</p>
+        <p class="hint-text" style="text-align:center; margin-bottom:12px;">公開されている他の人のロードマップを検索できます。</p>
         <div class="modal-field" style="display:flex; gap:8px;">
             <input type="text" id="explore-search-input" placeholder="タグ(#技名)、タイトル、図の中の技名で検索..." style="flex:1;">
             <button id="explore-execute-btn" class="modal-btn" style="width:auto; margin:0; padding:10px 16px;">検索</button>
@@ -306,9 +393,7 @@
                 loginBtn.style.display = 'inline-block'; logoutBtn.style.display = 'none';
                 userInfo.style.display = 'none'; cloudSaveBtn.style.display = 'none'; cloudLoadBtn.style.display = 'none'; bookmarkListBtn.style.display = 'none';
             }
-            if (guideBtn) {
-                guideBtn.style.display = 'inline-block';
-            }
+            if (guideBtn) { guideBtn.style.display = 'inline-block'; }
         }
 
         document.getElementById('login-btn').addEventListener('click', async () => { const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } }); if (error) alert('ログインエラー: ' + error.message); });
@@ -393,11 +478,11 @@
             }
 
             if (strictlyReadOnly) {
-                cloudSaveBtn.textContent = '☁️ 保存不可';
+                cloudSaveBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> 保存不可';
             } else if (readOnly && currentTreeEditPermission === 'approved') {
-                cloudSaveBtn.textContent = '☁️ 保存 (要PIN)';
+                cloudSaveBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> 保存 (要PIN)';
             } else {
-                cloudSaveBtn.textContent = '☁️ クラウド保存';
+                cloudSaveBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> 保存';
             }
 
             if (strictlyReadOnly) setMode('view');
@@ -490,15 +575,39 @@
             alert('新しい図を作成しました。技を追加できます。');
         }
 
-        document.getElementById('new-diagram-btn').addEventListener('click', startNewDiagram);
+        // ====== 🎨 Cytoscape 初期化 (スマホ向け設定追加) ======
+        const cy = cytoscape({
+            container: document.getElementById('cy'),
+            // スマホ等で操作しやすくするオプション群
+            minZoom: 0.3,
+            maxZoom: 3.0,
+            wheelSensitivity: 0.2,
+            boxSelectionEnabled: true,
+            userZoomingEnabled: true,
+            userPanningEnabled: true,
+            style: [
+                { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#95a5a6', 'color': '#333', 'text-valign': 'bottom', 'text-margin-y': 5, 'font-size': '14px', 'width': 42, 'height': 42, 'text-wrap': 'wrap', 'z-index': 30 } },
+                { selector: 'node:selected', style: { 'border-width': 4, 'border-color': '#3498db' } }, /* 選択時のスタイル */
+                { selector: 'edge[edgeType="prereq"]', style: { 'width': 3, 'line-color': '#95a5a6', 'target-arrow-color': '#95a5a6', 'target-arrow-shape': 'triangle', 'curve-style': 'straight', 'z-index': 1 } },
+                { selector: 'edge[edgeType="trans"]', style: { 'width': 3.2, 'line-color': '#95a5a6', 'target-arrow-color': '#95a5a6', 'target-arrow-shape': 'vee', 'line-style': 'dashed', 'curve-style': 'unbundled-bezier', 'control-point-distances': '60', 'control-point-weights': '0.45', 'label': 'data(label)', 'text-wrap': 'wrap', 'text-max-width': '90px', 'text-overflow-wrap': 'anywhere', 'font-size': '10px', 'color': '#2c3e50', 'text-background-opacity': 1, 'text-background-color': '#ffffff', 'text-background-padding': '2px 4px', 'text-background-shape': 'roundrectangle', 'text-border-opacity': 1, 'text-border-color': '#bdc3c7', 'text-border-width': 1, 'text-margin-y': -6, 'z-index': 10 } },
+                { selector: '.selected-source', style: { 'border-width': 5, 'border-color': '#e74c3c' } },
+                { selector: 'node[url]', style: { 'text-border-color': '#e74c3c', 'text-border-width': 2 } },
+                { selector: 'edge[hasTransUrl]', style: { 'text-border-color': '#e74c3c', 'text-border-width': 2 } },
+                { selector: '.highlight-duplicate', style: { 'border-width': 5, 'border-color': '#f1c40f', 'border-style': 'dashed', 'background-color': '#fff3cd' } },
+                { selector: '.filtered-out', style: { 'opacity': 0.15, 'events': 'no' } }
+            ]
+        });
 
-        // PIN入力を4桁数字のみに制限
+        // ==========================================
+        // 以降は既存の関数やイベントリスナー群
+        // ==========================================
+        
+        // ... (以下、元のscriptの内容をそのまま維持) ...
         document.getElementById('cloud-pin-input').addEventListener('input', (e) => {
             const digitsOnly = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
             if (e.target.value !== digitsOnly) e.target.value = digitsOnly;
         });
 
-        // セレクトボックス変更時のPIN入力欄の表示切替
         document.getElementById('cloud-edit-select').addEventListener('change', (e) => {
             const pinContainer = document.getElementById('pin-input-container');
             const deleteLockCheckbox = document.getElementById('cloud-delete-lock-checkbox');
@@ -528,7 +637,6 @@
         document.getElementById('cloud-save-btn').addEventListener('click', () => {
             if (!currentUser) return alert('ログインしてください。');
             
-            // ★ロック状態なら、保存ボタンを押したときにもPINを聞いてくる
             if (isReadOnlyTree) {
                 if (currentTreeEditPermission === 'approved') {
                     if (!checkEditPermission()) return;
@@ -637,14 +745,13 @@
                 const results = await Promise.all(queries); const tagCount = new Map();
                 results.forEach(res => { if (res.error || !res.data) return; res.data.forEach(row => { if (!row.tags) return; row.tags.split(/\s+/).forEach(t => { if (!t) return; const normalized = t.startsWith('#') ? t : '#' + t; if (normalized.length <= 1) return; tagCount.set(normalized, (tagCount.get(normalized) || 0) + 1); }); }); });
                 existingTagsCache = Array.from(tagCount.entries()).sort((a, b) => b[1] - a[1]).map(e => e[0]); renderExistingTagsFor(TAG_PRESET_CONTEXTS.save);
-            } catch (e) { console.error(e); existingEl.innerHTML = '<div class="tag-empty-msg" style="color:#e74c3c;">取得に失敗しました</div>'; } finally { btn.textContent = '🔄 取得'; }
+            } catch (e) { console.error(e); existingEl.innerHTML = '<div class="tag-empty-msg" style="color:#e74c3c;">取得に失敗しました</div>'; } finally { btn.innerHTML = '🔄 取得'; }
         }
 
         document.getElementById('reload-existing-tags-btn').addEventListener('click', async () => { await fetchExistingTags(); renderExistingTagsFor(TAG_PRESET_CONTEXTS.save); renderExistingTagsFor(TAG_PRESET_CONTEXTS.search); });
-        document.getElementById('search-reload-existing-tags-btn').addEventListener('click', async () => { const btn = document.getElementById('search-reload-existing-tags-btn'); btn.textContent = '取得中...'; await fetchExistingTags(); btn.textContent = '🔄 取得'; renderExistingTagsFor(TAG_PRESET_CONTEXTS.search); renderExistingTagsFor(TAG_PRESET_CONTEXTS.save); });
+        document.getElementById('search-reload-existing-tags-btn').addEventListener('click', async () => { const btn = document.getElementById('search-reload-existing-tags-btn'); btn.textContent = '取得中...'; await fetchExistingTags(); btn.innerHTML = '🔄 取得'; renderExistingTagsFor(TAG_PRESET_CONTEXTS.search); renderExistingTagsFor(TAG_PRESET_CONTEXTS.save); });
         document.getElementById('cloud-tags-input').addEventListener('input', renderTagPresets); document.getElementById('explore-search-input').addEventListener('input', () => renderTagPresetsFor(TAG_PRESET_CONTEXTS.search));
 
-        // ★ 保存実行処理
         document.getElementById('cloud-save-confirm-btn').addEventListener('click', async () => {
             const title = document.getElementById('cloud-title-input').value.trim();
             const tags = document.getElementById('cloud-tags-input').value.trim();
@@ -667,7 +774,7 @@
 
             let finalPin = currentTreeEditPin;
             if (isSavingOtherUserTree && !isCollaborativeEdit) {
-                finalPin = ''; // 他人の図をコピー保存する場合、元のPIN/削除ロックは引き継がない
+                finalPin = ''; 
             }
             const deleteLockChecked = document.getElementById('cloud-delete-lock-checkbox')?.checked;
 
@@ -679,7 +786,7 @@
                         let newPin = prompt('【削除ロック用PINの設定】\nこの図を削除する際に必要となる、\n「半角数字4桁」のPINを設定してください。', currentTreeEditPin || '');
                         if (newPin === null) {
                             saveButton.textContent = '保存する';
-                            return; // キャンセル
+                            return;
                         }
                         newPin = newPin.replace(/[^0-9]/g, '').slice(0, 4);
                         if (!/^[0-9]{4}$/.test(newPin)) {
@@ -690,7 +797,7 @@
                         finalPin = newPin;
                     }
                 } else {
-                    finalPin = ''; // ロックがない場合はPINをリセット
+                    finalPin = '';
                 }
             }
 
@@ -783,7 +890,7 @@
             if (!currentUser) return alert('ログインしてください。');
             const btn = document.getElementById('bookmark-list-btn'); btn.textContent = '取得中...';
             const { data, error } = await sb.from('bookmarks').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-            btn.textContent = '🔖 お気に入り';
+            btn.innerHTML = '<i class="fas fa-bookmark"></i>';
 
             if (error) return alert('取得失敗: ' + error.message);
             const list = document.getElementById('bookmark-load-list'); list.innerHTML = '';
@@ -810,7 +917,7 @@
             if (!currentUser) return alert('ログインしてください。');
             const btn = document.getElementById('cloud-load-btn'); btn.textContent = '取得中...';
             const { data, error } = await sb.from('trees').select('title, status, tags, edit_permission, edit_pin').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
-            btn.textContent = '☁️ クラウド読込';
+            btn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> 読込';
 
             if (error) return alert('取得失敗: ' + error.message); if (!data || data.length === 0) return alert('保存されたデータがありません。');
             cloudLoadList.innerHTML = '';
@@ -823,7 +930,7 @@
                 const lockIcon = item.edit_pin ? '🔐' : '';
                 const fileBtn = document.createElement('button'); fileBtn.className = 'modal-btn secondary'; fileBtn.style.textAlign = 'left'; fileBtn.style.margin = '0'; fileBtn.style.flex = '1'; fileBtn.textContent = `${statusIcon}${editIcon}${lockIcon} ${item.title}`;
                 fileBtn.addEventListener('click', () => loadSpecificTree(item.title, currentUser.id));
-                const delBtn = document.createElement('button'); delBtn.textContent = '🗑'; delBtn.style.backgroundColor = '#e74c3c'; delBtn.style.padding = '12px'; delBtn.style.borderRadius = '8px'; delBtn.style.cursor = 'pointer'; delBtn.style.color = 'white'; delBtn.style.border = 'none';
+                const delBtn = document.createElement('button'); delBtn.innerHTML = '<i class="fas fa-trash"></i>'; delBtn.style.backgroundColor = '#e74c3c'; delBtn.style.padding = '12px'; delBtn.style.borderRadius = '8px'; delBtn.style.cursor = 'pointer'; delBtn.style.color = 'white'; delBtn.style.border = 'none';
                 delBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     if (item.edit_pin) {
@@ -844,7 +951,6 @@
             openOverlay(); cloudLoadModal.style.display = 'block';
         });
 
-        // ★ 特定の図を読み込む処理
         async function loadSpecificTree(title, userId) {
             const requestVersion = ++treeStateVersion;
             const baseQuery = sb.from('trees').select('graph_data, status, tags, author_name, edit_permission, edit_pin').eq('user_id', userId).eq('title', title);
@@ -863,19 +969,16 @@
                 
                 let canEditThisTree = false;
                 if (currentUser && userId === currentUser.id) {
-                    canEditThisTree = true; // 自分の図
+                    canEditThisTree = true; 
                 } else if (currentUser && currentTreeEditPermission === 'anyone') {
-                    canEditThisTree = true; // 誰でも編集可
+                    canEditThisTree = true; 
                 } else if (currentTreeEditPermission === 'approved') {
-                    // ★読み込み時にはすぐにパスワードを聞かない
-                    // 以前に正解したことがあるかローカルストレージだけチェック
                     let savedPins = JSON.parse(localStorage.getItem('approved_pins') || '{}');
                     let treeKey = userId + '_' + title;
-                    
                     if (currentUser && savedPins[treeKey] && savedPins[treeKey] === currentTreeEditPin) {
-                        canEditThisTree = true; // 自動でロック解除
+                        canEditThisTree = true; 
                     } else {
-                        canEditThisTree = false; // まだロック状態（アクションを起こした時に聞く）
+                        canEditThisTree = false; 
                     }
                 }
 
@@ -1014,20 +1117,6 @@
         let undoStack = []; let currentMode = 'view'; let sourceNode = null; let editingNode = null; let editingEdge = null; let activeTransPalettes = []; let currentEditingTransitions = [];
         function pushUndo(action, data) { undoStack.push({ action, data }); }
 
-        const cy = cytoscape({
-            container: document.getElementById('cy'),
-            style: [
-                { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#95a5a6', 'color': '#333', 'text-valign': 'bottom', 'text-margin-y': 5, 'font-size': '14px', 'width': 42, 'height': 42, 'text-wrap': 'wrap', 'z-index': 30 } },
-                { selector: 'edge[edgeType="prereq"]', style: { 'width': 3, 'line-color': '#95a5a6', 'target-arrow-color': '#95a5a6', 'target-arrow-shape': 'triangle', 'curve-style': 'straight', 'z-index': 1 } },
-                { selector: 'edge[edgeType="trans"]', style: { 'width': 3.2, 'line-color': '#95a5a6', 'target-arrow-color': '#95a5a6', 'target-arrow-shape': 'vee', 'line-style': 'dashed', 'curve-style': 'unbundled-bezier', 'control-point-distances': '60', 'control-point-weights': '0.45', 'label': 'data(label)', 'text-wrap': 'wrap', 'text-max-width': '90px', 'text-overflow-wrap': 'anywhere', 'font-size': '10px', 'color': '#2c3e50', 'text-background-opacity': 1, 'text-background-color': '#ffffff', 'text-background-padding': '2px 4px', 'text-background-shape': 'roundrectangle', 'text-border-opacity': 1, 'text-border-color': '#bdc3c7', 'text-border-width': 1, 'text-margin-y': -6, 'z-index': 10 } },
-                { selector: '.selected-source', style: { 'border-width': 5, 'border-color': '#e74c3c' } },
-                { selector: 'node[url]', style: { 'text-border-color': '#e74c3c', 'text-border-width': 2 } },
-                { selector: 'edge[hasTransUrl]', style: { 'text-border-color': '#e74c3c', 'text-border-width': 2 } },
-                { selector: '.highlight-duplicate', style: { 'border-width': 5, 'border-color': '#f1c40f', 'border-style': 'dashed', 'background-color': '#fff3cd' } },
-                { selector: '.filtered-out', style: { 'opacity': 0.15, 'events': 'no' } }
-            ]
-        });
-
         function applyNodePieStyle(node) {
             let colors = node.data('colors') || []; if (colors.length === 0 && node.data('color')) colors = [node.data('color')]; if (colors.length === 0) colors = ['#95a5a6'];
             if (colors.length === 1) { node.style({ 'background-color': colors[0], 'pie-size': '0%' }); } else {
@@ -1119,7 +1208,7 @@
                     const row = document.createElement('div'); row.style.padding = '10px'; row.style.borderBottom = '1px solid #ecf0f1'; row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems = 'center';
                     const typeLabel = item.type === 'node' ? '【技】' : '【遷移】'; const dateStr = formatDate(item.ts);
                     row.innerHTML = `<div style="display:flex; flex-direction:column; gap:4px;"><span style="font-size:11px; color:#7f8c8d;">${dateStr}</span><span style="font-size:14px; font-weight:bold; color:#2c3e50;">${typeLabel} ${item.name}</span></div>`;
-                    if (item.url) { const btn = document.createElement('a'); btn.href = item.url; btn.target = '_blank'; btn.className = 'modal-btn'; btn.style.margin = '0'; btn.style.width = 'auto'; btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; btn.style.textDecoration = 'none'; btn.textContent = '🎥 動画'; row.appendChild(btn); }
+                    if (item.url) { const btn = document.createElement('a'); btn.href = item.url; btn.target = '_blank'; btn.className = 'modal-btn'; btn.style.margin = '0'; btn.style.width = 'auto'; btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; btn.style.textDecoration = 'none'; btn.innerHTML = '<i class="fas fa-video"></i> 動画'; row.appendChild(btn); }
                     content.appendChild(row);
                 });
             } openOverlay(); groupListModal.style.display = 'block';
@@ -1141,12 +1230,11 @@
                 const row = document.createElement('div'); row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.gap = '8px'; row.style.marginBottom = '8px';
                 const colorContainer = document.createElement('div'); colorContainer.style.display = 'flex'; colorContainer.style.gap = '4px'; const colors = t.colors && t.colors.length > 0 ? t.colors : ['#95a5a6'];
                 colors.forEach(c => { const swatch = document.createElement('div'); swatch.style.width = '14px'; swatch.style.height = '14px'; swatch.style.borderRadius = '50%'; swatch.style.backgroundColor = c; swatch.style.border = '1px solid rgba(0,0,0,0.2)'; swatch.style.flexShrink = '0'; colorContainer.appendChild(swatch); });
-                const btn = document.createElement('a'); btn.className = 'modal-btn' + (t.url ? '' : ' disabled'); btn.textContent = t.name + (t.url ? ' 🎥' : ''); btn.style.flex = '1'; btn.style.margin = '0'; if (t.url) { btn.href = t.url; btn.target = '_blank'; }
+                const btn = document.createElement('a'); btn.className = 'modal-btn' + (t.url ? '' : ' disabled'); btn.innerHTML = t.name + (t.url ? ' <i class="fas fa-video"></i>' : ''); btn.style.flex = '1'; btn.style.margin = '0'; if (t.url) { btn.href = t.url; btn.target = '_blank'; }
                 row.appendChild(colorContainer); row.appendChild(btn); modalContent.appendChild(row);
             }); openOverlay(); linkModal.style.display = 'block';
         }
 
-        // ★ 編集系アクションをすべて `checkEditPermission()` でガード
         function openNodeEditor(node) {
             if (!checkEditPermission()) return;
             editingNode = node; document.getElementById('node-name-input').value = node.data('rawName') || ''; document.getElementById('node-url-input').value = node.data('url') || ''; modalPalette.setSelectedColors(node.data('colors') || []); openOverlay(); nodeEditor.style.display = 'block';
@@ -1158,7 +1246,7 @@
             const container = document.getElementById('trans-inputs-container'); container.innerHTML = ''; activeTransPalettes = [];
             transitions.forEach((t, i) => {
                 const box = document.createElement('div'); box.style.border = '1px solid #ddd'; box.style.padding = '10px'; box.style.borderRadius = '8px'; box.style.marginBottom = '12px'; box.style.backgroundColor = '#fafafa';
-                box.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;"><span style="font-size:12px; font-weight:bold; color:#2c3e50;">技の遷移 #${i + 1}</span>${transitions.length > 1 ? `<button type="button" class="del-trans-btn" data-index="${i}" style="background-color:#e74c3c; padding:4px 8px; font-size:11px;">削除</button>` : ''}</div><div class="modal-field"><label style="font-size:11px; margin-bottom:2px; color:#555;">遷移名</label><input type="text" class="trans-name-field" value="${t.name || ''}" placeholder="遷移名を入力" style="padding:6px; font-size:13px;"></div><div class="modal-field"><label style="font-size:11px; margin-bottom:2px; color:#555;">動画URL</label><input type="url" class="trans-url-field" value="${t.url || ''}" placeholder="https://..." style="padding:6px; font-size:13px;"></div><div class="modal-field" style="margin-bottom:0;"><label style="font-size:11px; margin-bottom:2px; color:#555;">色分け（複数タップ可）</label><div class="color-palette-container" style="background: transparent; padding: 0; justify-content: flex-start; margin-bottom: 8px;"><div id="trans-palette-${i}" class="color-palette" style="grid-template-columns: repeat(10, 22px); gap: 4px;"></div></div></div><div class="modal-field"><label style="font-size:11px; margin-bottom:2px; color:#555;">グループ名（最後にタップした選択色名）</label><input type="text" id="trans-group-input-${i}" placeholder="グループ名を入力" style="padding:6px; font-size:13px;"></div>`;
+                box.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;"><span style="font-size:12px; font-weight:bold; color:#2c3e50;">技の遷移 #${i + 1}</span>${transitions.length > 1 ? `<button type="button" class="del-trans-btn" data-index="${i}" style="background-color:#e74c3c; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:11px; cursor:pointer;">削除</button>` : ''}</div><div class="modal-field"><label style="font-size:11px; margin-bottom:2px; color:#555;">遷移名</label><input type="text" class="trans-name-field" value="${t.name || ''}" placeholder="遷移名を入力" style="padding:6px; font-size:13px;"></div><div class="modal-field"><label style="font-size:11px; margin-bottom:2px; color:#555;">動画URL</label><input type="url" class="trans-url-field" value="${t.url || ''}" placeholder="https://..." style="padding:6px; font-size:13px;"></div><div class="modal-field" style="margin-bottom:0;"><label style="font-size:11px; margin-bottom:2px; color:#555;">色分け（複数タップ可）</label><div class="color-palette-container" style="background: transparent; padding: 0; justify-content: flex-start; margin-bottom: 8px;"><div id="trans-palette-${i}" class="color-palette" style="grid-template-columns: repeat(10, 22px); gap: 4px;"></div></div></div><div class="modal-field"><label style="font-size:11px; margin-bottom:2px; color:#555;">グループ名</label><input type="text" id="trans-group-input-${i}" placeholder="グループ名を入力" style="padding:6px; font-size:13px;"></div>`;
                 container.appendChild(box); const pm = new PaletteManager(`trans-palette-${i}`, null, `trans-group-input-${i}`); pm.init(); pm.setSelectedColors(t.colors && t.colors.length > 0 ? t.colors : ['#95a5a6']); activeTransPalettes.push(pm);
             });
             container.querySelectorAll('.del-trans-btn').forEach(btn => { btn.addEventListener('click', (e) => { const indexToRemove = parseInt(e.currentTarget.dataset.index); const currentTrans = [...editingEdge.data('transitions')]; currentTrans.splice(indexToRemove, 1); editingEdge.data('transitions', currentTrans); openTransEditor(editingEdge); }); }); openOverlay(); transEditor.style.display = 'block';
@@ -1182,8 +1270,7 @@
             editingEdge.data({ transitions: newTransitions, label: buildTransitionLabel(newTransitions), hasTransUrl: newTransitions.some(t => t.url) }); applyEdgeGradientStyle(editingEdge); pushUndo('edit', { ele: editingEdge, oldData: oldData }); updateGroupLegend(); closeTransEditor();
         }
 
-        // ★ 各種ボタンのアクションもガード
-        btns.view.addEventListener('click', () => { setMode('view'); }); // 閲覧への切り替えは常に許可
+        btns.view.addEventListener('click', () => { setMode('view'); });
         btns.prereq.addEventListener('click', () => { if (!checkEditPermission()) return; setMode('prereq'); });
         btns.trans.addEventListener('click', () => { if (!checkEditPermission()) return; setMode('trans'); });
         btns.delete.addEventListener('click', () => { if (!checkEditPermission()) return; setMode('delete'); });
@@ -1210,20 +1297,20 @@
         function handleSingleTap(target) {
             if (target === cy) { cy.nodes().removeClass('highlight-duplicate'); if (sourceNode) { sourceNode.removeClass('selected-source'); sourceNode = null; } return; }
             if (currentMode === 'delete') { 
-                if (!checkEditPermission()) return; // 念のためガード
+                if (!checkEditPermission()) return;
                 const removedJsons = target.jsons(); target.remove(); pushUndo('remove', removedJsons); updateGroupLegend(); return; 
             }
             if (currentMode === 'view') {
                 if (target.isNode()) {
                     cy.nodes().removeClass('highlight-duplicate'); const nodeName = target.data('rawName'); if (nodeName) { cy.nodes().forEach(n => { if (n.data('rawName') === nodeName && n.id() !== target.id()) n.addClass('highlight-duplicate'); }); }
-                    const url = (target.data('url') || '').trim(); if (url !== '') window.open(url, '_blank'); else alert('この技にはURLが設定されていません。\n※ダブルタップで編集できます。');
+                    const url = (target.data('url') || '').trim(); if (url !== '') window.open(url, '_blank');
                 } else if (target.isEdge() && target.data('edgeType') === 'trans') {
                     const transitions = target.data('transitions') || []; if (transitions.length === 0) return; if (transitions.length === 1 && transitions[0].url) window.open(transitions[0].url, '_blank'); else showModal(transitions);
                 }
                 return;
             }
             if ((currentMode === 'prereq' || currentMode === 'trans') && target.isNode()) {
-                if (!checkEditPermission()) return; // 編集ガード
+                if (!checkEditPermission()) return;
                 if (!sourceNode) { sourceNode = target; sourceNode.addClass('selected-source'); } else {
                     if (currentMode === 'prereq') {
                         if (sourceNode.id() === target.id()) return alert('順序技は自分自身に繋げません。'); const existing = cy.edges(`[source="${sourceNode.id()}"][target="${target.id()}"][edgeType="prereq"]`);
@@ -1249,7 +1336,7 @@
         modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) { closeModal(); closeNodeEditor(); closeTransEditor(); closeCloudLoadModal(); closeCloudSaveModal(); closeGroupListModal(); closeFilterModal(); closeExploreModal(); closeBookmarkLoadModal(); } });
 
         document.getElementById('undo-btn').addEventListener('click', () => {
-            if (!checkEditPermission()) return; // 編集ガード
+            if (!checkEditPermission()) return;
             if (undoStack.length === 0) return alert('これ以上戻せません。'); const lastAction = undoStack.pop();
             if (lastAction.action === 'add') { lastAction.data.forEach(d => { const ele = cy.getElementById(d.data.id); if (ele.length > 0) ele.remove(); }); }
             else if (lastAction.action === 'remove') { const restored = cy.add(lastAction.data); restored.nodes().forEach(n => applyNodePieStyle(n)); restored.edges('[edgeType="trans"]').forEach(e => applyEdgeGradientStyle(e)); }
@@ -1258,7 +1345,7 @@
         });
 
         document.getElementById('arrange-btn').addEventListener('click', () => { 
-            if (!checkEditPermission()) return; // 編集ガード
+            if (!checkEditPermission()) return;
             cy.layout({ name: 'breadthfirst', directed: true, padding: 50, spacingFactor: 1.5 }).run(); 
         });
         
@@ -1268,6 +1355,28 @@
         
         document.getElementById('file-input').addEventListener('change', (evt) => { 
             const file = evt.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const data = JSON.parse(e.target.result); cy.json(data); undoStack = []; normalizeGraphData(); updateGroupLegend(); document.getElementById('current-tree-info').style.display = 'none'; } catch (err) { alert('ファイルの読み込みに失敗しました。'); } }; reader.readAsText(file); evt.target.value = ''; 
+        });
+
+        // ====== 🎨 フローティングアクションのイベントリスナー ======
+        document.getElementById('fit-btn').addEventListener('click', () => {
+            cy.fit('', 50);
+        });
+
+        document.getElementById('select-all-btn').addEventListener('click', () => {
+            cy.elements().select();
+        });
+
+        document.getElementById('deselect-all-btn').addEventListener('click', () => {
+            cy.elements().unselect();
+        });
+
+        document.getElementById('select-successors-btn').addEventListener('click', () => {
+            const selectedNodes = cy.nodes(':selected');
+            if (selectedNodes.length === 0) {
+                alert('起点となる技を1つ以上選択してください。');
+                return;
+            }
+            selectedNodes.successors().select();
         });
 
         toolbarPalette.init(); modalPalette.init(); filterPalette.init(); filterPalette.setSelectedColors([]); normalizeGraphData(); updateGroupLegend();
